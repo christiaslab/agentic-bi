@@ -2,7 +2,7 @@
   "schema_version": 1,
   "dataset": "USAspending.gov prime contract transactions: awarding agency EPA (toptier 068), award types A, B, C, D, action dates 2024-10-01 to 2025-09-30 (FY2025)",
   "capture_date_utc": "2026-11-01",
-  "captured_at_utc": "2026-11-01T21:24:04Z",
+  "captured_at_utc": "2026-11-01T21:34:23Z",
   "source": {
     "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
     "request_body": {
