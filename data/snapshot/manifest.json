@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "dataset": "USAspending.gov prime contract transactions: awarding agency EPA (toptier 068), award types A, B, C, D, action dates 2024-10-01 to 2025-09-30 (FY2025)",
+  "capture_date_utc": "2026-11-01",
+  "captured_at_utc": "2026-11-01T21:24:04Z",
+  "source": {
+    "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+    "request_body": {
+      "filters": {
+        "award_type_codes": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "time_period": [
+          {
+            "start_date": "2024-10-01",
+            "end_date": "2025-09-30",
+            "date_type": "action_date"
+          }
+        ],
+        "agencies": [
+          {
+            "type": "awarding",
+            "tier": "toptier",
+            "name": "Environmental Protection Agency"
+          }
+        ]
+      },
+      "columns": [
+        "contract_transaction_unique_key",
+        "contract_award_unique_key",
+        "award_id_piid",
+        "modification_number",
+        "federal_action_obligation",
+        "action_date",
+        "action_date_fiscal_year",
+        "awarding_agency_code",
+        "awarding_sub_agency_code",
+        "awarding_sub_agency_name",
+        "recipient_uei",
+        "recipient_name",
+        "recipient_parent_uei",
+        "recipient_parent_name",
+        "primary_place_of_performance_country_code",
+        "primary_place_of_performance_state_code",
+        "award_type_code",
+        "award_type",
+        "product_or_service_code",
+        "product_or_service_code_description",
+        "naics_code",
+        "naics_description",
+        "extent_competed_code",
+        "extent_competed"
+      ],
+      "file_format": "csv"
+    },
+    "file_name": "PrimeTransactionsAndSubawards_2026-11-01_H21M24S07662380.zip",
+    "status_total_rows": 12687,
+    "prime_transaction_members": [
+      {
+        "name": "Contracts_PrimeTransactions_2026-11-01_H21M24S11_1.csv",
+        "sha256": "b263cb698d148dea3b277bb011efa8c7236b02dd62664b4e6ba5ee971c1303f5",
+        "rows": 12687
+      }
+    ]
+  },
+  "filters": {
+    "award_type_codes": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "time_period": [
+      {
+        "start_date": "2024-10-01",
+        "end_date": "2025-09-30",
+        "date_type": "action_date"
+      }
+    ],
+    "agencies": [
+      {
+        "type": "awarding",
+        "tier": "toptier",
+        "name": "Environmental Protection Agency"
+      }
+    ]
+  },
+  "fields": [
+    "contract_transaction_unique_key",
+    "contract_award_unique_key",
+    "award_id_piid",
+    "modification_number",
+    "federal_action_obligation",
+    "action_date",
+    "action_date_fiscal_year",
+    "awarding_agency_code",
+    "awarding_sub_agency_code",
+    "awarding_sub_agency_name",
+    "recipient_uei",
+    "recipient_name",
+    "recipient_parent_uei",
+    "recipient_parent_name",
+    "primary_place_of_performance_country_code",
+    "primary_place_of_performance_state_code",
+    "award_type_code",
+    "award_type",
+    "product_or_service_code",
+    "product_or_service_code_description",
+    "naics_code",
+    "naics_description",
+    "extent_competed_code",
+    "extent_competed"
+  ],
+  "row_count": 12687,
+  "obligation_sum": "1697318332.65",
+  "files": [
+    {
+      "path": "contract_transactions.parquet",
+      "bytes": 323943,
+      "sha256": "149d4d8bf67156d5c41c2a64640979bd548c3662a088971edc2d1ec4e526ffba"
+    }
+  ]
+}
