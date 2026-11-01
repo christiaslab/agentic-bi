@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "task_id": "s0-000-short-slug",
+  "goal": "One or two sentences: what the increment achieves and why, in the words a reviewer will check the pull request against.",
+  "read_first": [
+    "AGENTS.md",
+    "docs/PLAN.md",
+    "the decisions and contracts this task depends on"
+  ],
+  "owned_paths": [
+    "path/to/each-file-or-directory-the-session-may-write"
+  ],
+  "out_of_scope": [
+    "the nearest tempting change the session must not make",
+    "work kept for a later session, named by its plan row"
+  ],
+  "done_means": [
+    "the focused test or check of this increment",
+    "uv run ruff check . && uv run ruff format --check . && uv run pytest -q && python3 scripts/commit_hygiene.py"
+  ],
+  "stop_and_report_when": [
+    "a rule here or in AGENTS.md cannot be met",
+    "a new dependency seems necessary"
+  ],
+  "hand_back": "One pull request from a branch named after task_id, quoting the verification output and the figures this brief asks for. Not merged.",
+  "note": "Adapted from the PAES kit v44 brief template. Copy to tasks/<plan row>-<slug>.json, replace every field, keep it near 300 words. Provenance: the plan row and the decisions it serves."
+}

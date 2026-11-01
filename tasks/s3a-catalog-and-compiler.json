@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "task_id": "s3a-catalog-and-compiler",
+  "goal": "Build the metrics catalog and the compiler of ADR-0002: a structured query in, parameterised SQL over the star-schema contract out, with structural refusal of anything outside the catalog, proven by unit tests on a synthetic DuckDB fixture.",
+  "read_first": [
+    "AGENTS.md",
+    "docs/decisions/0002-structured-query-and-compiler.md",
+    "docs/contracts/star-schema.md",
+    "docs/PLAN.md, row S3a"
+  ],
+  "owned_paths": [
+    "src/agentic_bi/semantic/",
+    "catalog/metrics.yaml",
+    "tests/semantic/",
+    "docs/catalog.md",
+    "tasks/reports/s3a-catalog-and-compiler.md"
+  ],
+  "out_of_scope": [
+    "the real snapshot and any network call",
+    "SQLMesh models (S2), golden reproduction (S3b), the agent and its tools (S4)",
+    "pyproject.toml and uv.lock",
+    "any table or column name not in docs/contracts/star-schema.md"
+  ],
+  "done_means": [
+    "catalog/metrics.yaml defines obligations, award_count, avg_award_value, supplier_concentration_top10 and competition_rate with the rules of ADR-0002, the allowed dimensions per metric and a plain-language description each",
+    "the structured query has a JSON schema exported by src/agentic_bi/semantic/query.py; a validation error names the offending field",
+    "compile(query) returns SQL text and a parameter list; a test proves no filter value appears in the SQL text, including a value holding a quote and a semicolon",
+    "typed refusal errors, each tested: unknown metric, unknown dimension, dimension not allowed for the metric, unknown operator, filter on a field that is not a dimension, malformed time range",
+    "every metric runs on a synthetic DuckDB fixture built in tests/semantic/ and returns a hand-computed value, including an award with net-negative obligations and a fiscal-month grouping",
+    "queries run on a connection opened read-only with enable_external_access=false and lock_configuration=true; a test shows a file-reading table function is refused",
+    "at least 30 tests",
+    "uv run ruff check . && uv run ruff format --check . && uv run pytest -q && python3 scripts/commit_hygiene.py"
+  ],
+  "stop_and_report_when": [
+    "a metric rule of ADR-0002 cannot be expressed over the contract tables: report it, do not change the contract",
+    "a dependency beyond duckdb and pyyaml seems necessary"
+  ],
+  "hand_back": "The branch s3a-catalog-and-compiler, pushed to origin and never merged, with the report committed as tasks/reports/s3a-catalog-and-compiler.md: outcome, the verification output, the test count and one compiled example per metric. The owner opens the pull request from the pushed branch.",
+  "note": "Plan row S3a. Serves ADR-0002. The synthetic fixture is the only data source here; real values arrive with S1 and S2 and are reproduced in S3b."
+}

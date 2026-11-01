@@ -1,0 +1,24 @@
+# Private working notes, local only (owner rule)
+HANDOFF.md
+notes/
+urls.txt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local data and engines
+*.duckdb
+*.duckdb.wal
+data/raw/
+data/tmp/
+
+# Secrets and editors
+.env
+.env.*
+!.env.example
+.DS_Store
+.worktrees/

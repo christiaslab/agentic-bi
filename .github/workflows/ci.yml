@@ -1,0 +1,49 @@
+# One job: lint, tests and the commit-history checks, on pull requests to main and pushes to main.
+# No secrets, no cache, no model. Actions pinned by commit SHA (the same pins as the PAES kit v44 CI template).
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository with full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # the commit-history checks read every commit reachable from HEAD
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install uv (pinned)
+        run: python -m pip install "uv==0.12.3"
+      - name: Install the locked environment
+        run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Tests
+        run: uv run pytest -q
+      - name: No attribution trailers in history
+        run: python3 scripts/commit_hygiene.py
+      - name: Every commit of the pull request is the maintainer's
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          others=$(git log --format='%ae' "$BASE..$HEAD_SHA" | sort -u | grep -vxF 'pa.christias@gmail.com' || true)
+          if [ -n "$others" ]; then echo "commits by another author: $others"; exit 1; fi
+          # cloud sessions can add a session-link trailer that commit_hygiene.py does not know
+          if git log --format='%B' "$BASE..$HEAD_SHA" | grep -qiE '^[[:space:]]*claude-session[[:space:]]*:'; then
+            echo "a commit carries a Claude-Session trailer"; exit 1
+          fi

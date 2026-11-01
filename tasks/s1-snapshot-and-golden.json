@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "task_id": "s1-snapshot-and-golden",
+  "goal": "Capture the EPA FY2025 contract slice of ADR-0001 as a column-pruned Parquet snapshot with a sha256 manifest, and on the same day capture 30 to 50 golden values from the publisher's aggregate endpoints, so that later sessions can prove the semantic layer reproduces the publisher's own totals.",
+  "read_first": [
+    "AGENTS.md",
+    "docs/decisions/0001-dataset-usaspending-epa-fy2025.md",
+    "docs/contracts/star-schema.md",
+    "docs/PLAN.md, row S1"
+  ],
+  "owned_paths": [
+    "src/agentic_bi/ingest/",
+    "tests/ingest/",
+    "tests/fixtures/usaspending/",
+    "data/snapshot/",
+    "docs/golden/",
+    "docs/sources.md",
+    "tasks/reports/s1-snapshot-and-golden.md"
+  ],
+  "out_of_scope": [
+    "SQLMesh models (S2) and the metrics catalog or compiler (S3a)",
+    "pyproject.toml and uv.lock: use the standard library for HTTP and DuckDB for Parquet",
+    "the dated monthly archive files, any other agency, any other fiscal year",
+    "any column outside the allow-list of ADR-0001 point 6"
+  ],
+  "done_means": [
+    "uv run python -m agentic_bi.ingest.fetch --out data/snapshot writes the Parquet and manifest.json (capture date UTC, filter JSON, field list, row count, sha256 per file)",
+    "uv run python -m agentic_bi.ingest.golden --out docs/golden writes 30 to 50 values, each with endpoint, request body, capture date and the tag owner_api or derived",
+    "the snapshot's row count and its sum of obligations for award types A, B, C and D equal the publisher's totals of the same day to the cent; the pull request states both pairs of numbers (reference 12,687 and 1,697,318,332.65 from 2026-10-30)",
+    "docs/sources.md maps every kept source field to its column in docs/contracts/star-schema.md, or marks it unused",
+    "a test fails if any excluded column (recipient phone, fax, address lines, any highly_compensated_officer_ field) appears in the snapshot schema",
+    "tests run offline on recorded, trimmed fixtures under tests/fixtures/usaspending/",
+    "uv run ruff check . && uv run ruff format --check . && uv run pytest -q && python3 scripts/commit_hygiene.py"
+  ],
+  "stop_and_report_when": [
+    "the USAspending hosts are unreachable: write the scripts and tests on fixtures marked SYNTHETIC in their file names, write no snapshot and no golden file, open the pull request as a draft with a Blocked section",
+    "the totals do not reconcile to the cent after re-checking the filter: report both numbers and the difference, do not adjust anything to make them match",
+    "the pruned Parquet is over 10 MB: do not commit it; commit the manifest and say so in the pull request"
+  ],
+  "hand_back": "The branch s1-snapshot-and-golden, pushed to origin and never merged, with the report committed as tasks/reports/s1-snapshot-and-golden.md: outcome, the verification output, the reconciliation table, the snapshot size and the capture date. The owner opens the pull request from the pushed branch.",
+  "note": "Plan row S1. Serves ADR-0001. Same-day rule: the snapshot and every golden value come from one capture day, recorded in the manifest."
+}
