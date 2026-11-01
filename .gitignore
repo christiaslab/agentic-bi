@@ -16,6 +16,11 @@ __pycache__/
 data/raw/
 data/tmp/
 
+# SQLMesh cache and logs (the CLI logs into ./logs of the working directory)
+warehouse/.cache/
+warehouse/logs/
+/logs/
+
 # Secrets and editors
 .env
 .env.*
