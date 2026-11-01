@@ -36,4 +36,5 @@ def test_guide_table_of_allowed_dimensions_matches_the_catalog() -> None:
 @pytest.mark.parametrize("path", [GUIDE, DEFAULT_CATALOG_PATH])
 def test_no_em_or_en_dash(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
-    assert "—" not in text and "–" not in text
+    em_dash, en_dash = chr(0x2014), chr(0x2013)
+    assert em_dash not in text and en_dash not in text
