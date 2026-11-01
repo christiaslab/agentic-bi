@@ -1,0 +1,155 @@
+# Metrics catalog: the single home of measure definitions (ADR-0002 point 2).
+#
+# The compiler renders SQL from this file and from nothing else. Every column below is
+# written as table.column and is checked on load against docs/contracts/star-schema.md
+# (through src/agentic_bi/semantic/contract.py). Names of grains, dimensions, operators
+# and metrics are the words a structured query uses; they are never physical names.
+# Plain-language reading guide: docs/catalog.md.
+
+version: 1
+
+# Time breakdowns. A query names one grain; "total" means no time breakdown. Fiscal
+# months and quarters always come with their fiscal year, so October 2024 and October
+# 2025 never merge.
+grains:
+  total:
+    description: One row for the whole selection, with no time breakdown.
+    columns: []
+  fiscal_year:
+    description: >-
+      One row per US federal fiscal year. Fiscal year Y runs from 1 October of Y-1 to
+      30 September of Y.
+    columns: [dim_date.fiscal_year]
+  fiscal_quarter:
+    description: >-
+      One row per fiscal quarter with its fiscal year. Quarter 1 is October to December.
+    columns: [dim_date.fiscal_year, dim_date.fiscal_quarter]
+  fiscal_month:
+    description: >-
+      One row per fiscal month with its fiscal year. Month 1 is October, month 12 is
+      September.
+    columns: [dim_date.fiscal_year, dim_date.fiscal_month]
+
+# Fields a metric can be grouped or filtered by. A dimension with "values" accepts only
+# those values in a filter; the others accept any value of their type.
+dimensions:
+  award_type:
+    description: >-
+      Contract award type code: A is a BPA call, B a purchase order, C a delivery order,
+      D a definitive contract.
+    column: fct_contract_transaction.award_type_code
+    type: string
+    values: [A, B, C, D]
+  sub_agency:
+    description: Code of the awarding sub-agency.
+    column: fct_contract_transaction.sub_agency_code
+    type: string
+  psc:
+    description: Product and Service Code (PSC) of the transaction.
+    column: fct_contract_transaction.psc_code
+    type: string
+  naics:
+    description: NAICS industry code of the transaction.
+    column: fct_contract_transaction.naics_code
+    type: string
+  competition:
+    description: Extent-competed code of the transaction, as recorded at the source.
+    column: fct_contract_transaction.competition_code
+    type: string
+  competed:
+    description: >-
+      Whether the transaction's extent-competed code counts as competed: true or false,
+      and empty (null) when the transaction has no code.
+    column: dim_competition.is_competed
+    type: boolean
+  recipient:
+    description: >-
+      The reporting recipient's UEI: the parent company's UEI when a parent is recorded,
+      otherwise the recipient's own UEI. Subsidiaries roll up to their parent, so a
+      subsidiary's own UEI never appears here.
+    column: dim_recipient.reporting_uei
+    type: string
+  pop_state:
+    description: >-
+      Place-of-performance state or territory code; empty (null) when the work is
+      performed abroad.
+    column: fct_contract_transaction.pop_state_code
+    type: string
+
+# Filter operators. Every filter value is bound as a query parameter, never written into
+# SQL text (ADR-0002 point 4).
+operators:
+  eq: The field equals the value.
+  ne: >-
+    The field differs from the value. Rows where the field is empty (for example work
+    performed abroad) are kept.
+  in: The field equals one of the listed values.
+  not_in: >-
+    The field equals none of the listed values. Rows where the field is empty are kept.
+
+metrics:
+  obligations:
+    description: >-
+      Net federal action obligations in US dollars: the sum of the obligation amount of
+      every transaction in the selection. De-obligations count as negative amounts, so an
+      award, a month or a group can be net negative. Award-level cumulative totals are not
+      used.
+    kind: sum
+    column: fct_contract_transaction.obligation_amount
+    sign: net
+    unit: usd
+    dimensions: [award_type, sub_agency, psc, naics, competition, competed, recipient, pop_state]
+
+  award_count:
+    description: >-
+      Number of distinct awards active in the period: awards with at least one
+      transaction in the selection, whatever its amount, so an award with only a
+      de-obligation in the period still counts. It is not the number of new awards. When
+      grouped by fiscal month or by a field that can change within an award, an award
+      active in two groups counts once in each, so the groups can add up to more than the
+      total.
+    kind: count_distinct
+    column: fct_contract_transaction.award_key
+    counts: active_in_period
+    unit: awards
+    dimensions: [award_type, sub_agency, psc, naics, competition, competed, recipient, pop_state]
+
+  avg_award_value:
+    description: >-
+      Average net obligations per active award, in US dollars: obligations divided by
+      award_count over the same selection. Both follow their own rules, so de-obligations
+      lower the average and an award active in the period counts even when its amount in
+      the period is zero or negative. It is not an average of award ceilings.
+    kind: ratio
+    numerator: obligations
+    denominator: award_count
+    unit: usd
+    dimensions: [award_type, sub_agency, psc, naics, competition, competed, recipient, pop_state]
+
+  supplier_concentration_top10:
+    description: >-
+      Share of net obligations held by the ten largest recipients, counted at the parent
+      level: each recipient rolls up to its parent's UEI, or stays under its own UEI when
+      no parent is recorded. Recipients are ranked by their net obligations in the
+      selection; a tie at tenth place is broken by UEI, which does not change the share.
+      The result is a fraction, 1 when ten or fewer recipients are present. Because
+      de-obligations are negative, it can exceed 1 when the remaining recipients are net
+      negative.
+    kind: top_n_share
+    measure: obligations
+    entity: recipient
+    n: 10
+    unit: share
+    dimensions: [award_type, sub_agency, psc, naics, competition, competed, pop_state]
+
+  competition_rate:
+    description: >-
+      Share of net obligations on transactions whose extent-competed code is marked as
+      competed, as a fraction of the net obligations of the whole selection. Transactions
+      with no extent-competed code count as not competed. Numerator and denominator are
+      both net, so de-obligations reduce both.
+    kind: share_where
+    measure: obligations
+    condition: competed
+    unit: share
+    dimensions: [award_type, sub_agency, psc, naics, recipient, pop_state]
