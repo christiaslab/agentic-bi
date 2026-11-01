@@ -46,6 +46,9 @@ def project_config(database: Path | str | None = None, snapshot_parquet: Path | 
             "snapshot_parquet": str(snapshot_parquet or SNAPSHOT_PARQUET),
             "fiscal_year": spec.FISCAL_YEAR,
         },
+        # SQLMesh otherwise posts usage events to its vendor's host; the project's only
+        # network is package installs and the USAspending hosts (AGENTS.md)
+        disable_anonymized_analytics=True,
     )
 
 
