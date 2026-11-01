@@ -6,4 +6,4 @@ Status: under construction, see [docs/PLAN.md](docs/PLAN.md). Working rules: [AG
 
 ## Data notice
 
-Data from [USAspending.gov](https://www.usaspending.gov), US Government work in the public domain. Slice and capture rules: [ADR-0001](docs/decisions/0001-dataset-usaspending-epa-fy2025.md). Personal contact data and officer compensation are excluded by an explicit column allow-list.
+Data from [USAspending.gov](https://www.usaspending.gov), US Government work in the public domain, captured on 2026-11-01 (UTC); the snapshot's manifest is [data/snapshot/manifest.json](data/snapshot/manifest.json). Slice and capture rules: [ADR-0001](docs/decisions/0001-dataset-usaspending-epa-fy2025.md). Personal contact data and officer compensation are excluded by an explicit column allow-list.
