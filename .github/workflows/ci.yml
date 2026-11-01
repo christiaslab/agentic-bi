@@ -5,6 +5,8 @@ name: ci
 on:
   pull_request:
     branches: [main]
+    # edited: a description fixed after a failed check runs the check again
+    types: [opened, edited, reopened, synchronize]
   push:
     branches: [main]
 
@@ -46,4 +48,14 @@ jobs:
           # cloud sessions can add a session-link trailer that commit_hygiene.py does not know
           if git log --format='%B' "$BASE..$HEAD_SHA" | grep -qiE '^[[:space:]]*claude-session[[:space:]]*:'; then
             echo "a commit carries a Claude-Session trailer"; exit 1
+          fi
+      - name: No attribution in the pull request title or description
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # a squash merge can turn the description into a commit message; reject what commit_hygiene.py rejects
+          if printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" | grep -qiE '^[^[:alnum:]]*(generated[- ](with|by)\b|co-authored-by[[:space:]]*:|signed-off-by[[:space:]]*:|claude-session[[:space:]]*:)'; then
+            echo "the pull request title or description carries an attribution line; edit it out"; exit 1
           fi
