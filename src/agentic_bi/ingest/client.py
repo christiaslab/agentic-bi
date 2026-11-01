@@ -41,8 +41,17 @@ def check_url(url: str) -> str:
     return url
 
 
+class AllowedHostsRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only when it stays on the USAspending hosts."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        check_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def urllib_transport(timeout: float = 120.0) -> Transport:
     """The live transport. Proxy and CA settings come from the environment."""
+    opener = urllib.request.build_opener(AllowedHostsRedirect)
 
     def send(method: str, url: str, body: bytes | None) -> tuple[int, bytes]:
         headers = {"User-Agent": USER_AGENT, "Accept": "application/json, */*"}
@@ -50,7 +59,7 @@ def urllib_transport(timeout: float = 120.0) -> Transport:
             headers["Content-Type"] = "application/json"
         request = urllib.request.Request(url, data=body, method=method, headers=headers)
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+            with opener.open(request, timeout=timeout) as response:
                 return response.status, response.read()
         except urllib.error.HTTPError as error:
             return error.code, error.read()
@@ -114,7 +123,8 @@ class Client:
 
 def api_url(path: str, params: dict[str, str] | None = None) -> str:
     """The full URL of an API path such as ``/api/v2/search/spending_by_award_count/``."""
-    if not path.startswith("/api/v2/"):
+    segments = path.split("/")
+    if not path.startswith("/api/v2/") or ".." in segments or any(c in path for c in "?#\\"):
         raise HttpError(f"not an API v2 path: {path}")
     query = "" if not params else "?" + urllib.parse.urlencode(params)
     return API_BASE + path + query

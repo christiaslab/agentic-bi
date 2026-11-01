@@ -37,6 +37,7 @@ STATUS_PATH = "/api/v2/download/status"
 PARQUET_NAME = "contract_transactions.parquet"
 MANIFEST_NAME = "manifest.json"
 SIZE_LIMIT_BYTES = 10 * 1024 * 1024
+MAX_MEMBER_BYTES = 1024 * 1024 * 1024
 PRIME_MEMBER = re.compile(r"^Contracts_PrimeTransactions_[A-Za-z0-9_-]+\.csv$")
 GENERATED_FILE = re.compile(r"^/generated_downloads/[A-Za-z0-9_.-]+\.zip$")
 
@@ -129,6 +130,8 @@ def extract_rows(zip_bytes: bytes, target: Path) -> tuple[list[dict], int]:
             writer = csv.writer(out, lineterminator="\n")
             writer.writerow(spec.FIELDS)
             for name in names:
+                if archive.getinfo(name).file_size > MAX_MEMBER_BYTES:
+                    raise SnapshotError(f"{name} is larger than {MAX_MEMBER_BYTES} bytes")
                 raw = archive.read(name)
                 reader = csv.reader(io.StringIO(raw.decode("utf-8-sig"), newline=""))
                 header = next(reader, None)
