@@ -49,9 +49,9 @@ Every field of the allow-list (`spec.FIELDS`), with the star-schema column it fe
 | `awarding_sub_agency_code` | VARCHAR | `fct_contract_transaction.sub_agency_code`, `dim_sub_agency.sub_agency_code` | |
 | `awarding_sub_agency_name` | VARCHAR | `dim_sub_agency.sub_agency_name` | |
 | `recipient_uei` | VARCHAR | `fct_contract_transaction.recipient_uei`, `dim_recipient.recipient_uei` | present on every row |
-| `recipient_name` | VARCHAR | `dim_recipient.recipient_name` | sole proprietors' names stay (ADR-0001 point 6) |
-| `recipient_parent_uei` | VARCHAR | `dim_recipient.parent_uei`; with `recipient_uei`, `dim_recipient.reporting_uei` | present on every row; see the open point below |
-| `recipient_parent_name` | VARCHAR | `dim_recipient.parent_name` | |
+| `recipient_name` | VARCHAR | `dim_recipient.recipient_name`; `dim_reporting_recipient.reporting_name` when no parent is recorded | sole proprietors' names stay (ADR-0001 point 6) |
+| `recipient_parent_uei` | VARCHAR | with `recipient_uei`, `fct_contract_transaction.reporting_uei` and `dim_reporting_recipient.reporting_uei` | present on every row; the reporting parent belongs to the transaction (contract revision of 2026-11-01) |
+| `recipient_parent_name` | VARCHAR | `dim_reporting_recipient.reporting_name` | |
 | `primary_place_of_performance_country_code` | VARCHAR | used to derive `fct_contract_transaction.pop_state_code` | the state is null when this is not `USA` |
 | `primary_place_of_performance_state_code` | VARCHAR | `fct_contract_transaction.pop_state_code` | null on the 10 rows of 2026-11-01 whose country is not `USA`, one of them `UMI` (US Minor Outlying Islands) |
 | `award_type_code` | VARCHAR | `fct_contract_transaction.award_type_code` | `A`, `B`, `C` or `D`, checked by the fetch |
@@ -89,5 +89,5 @@ Not used: `POST /api/v2/search/spending_by_award_count/` answers 3,203 contract 
 
 ## Open points for S2
 
-- **Parent UEI varies within a recipient.** On 2026-11-01, 13 of the 1,165 recipient UEIs carry more than one `recipient_parent_uei` across their transactions. `dim_recipient` has one row per `recipient_uei`, so S2 must choose which parent it keeps. The derived top-10 share in `docs/golden/golden.json` resolves the reporting UEI per transaction (`coalesce(recipient_parent_uei, recipient_uei)`).
+- **Parent UEI varies within a recipient.** On 2026-11-01, 13 of the 1,165 recipient UEIs carry more than one `recipient_parent_uei` across their transactions. Resolved by the contract revision of 2026-11-01: the fact carries `reporting_uei` per transaction (`coalesce(recipient_parent_uei, recipient_uei)`, as the derived top-10 share in `docs/golden/golden.json` does), and `dim_reporting_recipient` has one row per `reporting_uei`. `dim_recipient` keeps no parent column.
 - **Missing competition code.** 5 transactions (net -47,387.44) have no `extent_competed_code`; `dim_competition` needs a row for them or the fact join fails its audit.
