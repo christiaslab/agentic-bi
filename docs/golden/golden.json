@@ -1,0 +1,2474 @@
+{
+  "schema_version": 1,
+  "capture_date_utc": "2026-11-01",
+  "captured_at_utc": "2026-11-01T21:28:10Z",
+  "snapshot": {
+    "manifest": "manifest.json",
+    "capture_date_utc": "2026-11-01",
+    "file": "contract_transactions.parquet",
+    "sha256": "149d4d8bf67156d5c41c2a64640979bd548c3662a088971edc2d1ec4e526ffba"
+  },
+  "filters": {
+    "award_type_codes": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "time_period": [
+      {
+        "start_date": "2024-10-01",
+        "end_date": "2025-09-30",
+        "date_type": "action_date"
+      }
+    ],
+    "agencies": [
+      {
+        "type": "awarding",
+        "tier": "toptier",
+        "name": "Environmental Protection Agency"
+      }
+    ]
+  },
+  "format": "Amounts are decimal strings in US dollars with two places, counts are integers, ratios are decimal strings with six places. owner_api values were read from the endpoint with the request shown; derived values were computed from the snapshot by the SQL shown, the snapshot itself coming from the request shown.",
+  "reconciliation": {
+    "status": "match",
+    "checks": [
+      {
+        "measure": "row_count",
+        "snapshot": "12687",
+        "publisher": "12687",
+        "difference": "0",
+        "publisher_source": {
+          "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_transaction_count/",
+          "method": "POST",
+          "query": null,
+          "request_body": {
+            "filters": {
+              "award_type_codes": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "time_period": [
+                {
+                  "start_date": "2024-10-01",
+                  "end_date": "2025-09-30",
+                  "date_type": "action_date"
+                }
+              ],
+              "agencies": [
+                {
+                  "type": "awarding",
+                  "tier": "toptier",
+                  "name": "Environmental Protection Agency"
+                }
+              ]
+            }
+          },
+          "response_path": "results.contracts"
+        },
+        "match": true
+      },
+      {
+        "measure": "row_count",
+        "snapshot": "12687",
+        "publisher": "12687",
+        "difference": "0",
+        "publisher_source": {
+          "endpoint": "https://api.usaspending.gov/api/v2/agency/068/awards/",
+          "method": "GET",
+          "query": {
+            "fiscal_year": "2025",
+            "award_type_codes": "A,B,C,D"
+          },
+          "request_body": null,
+          "response_path": "transaction_count"
+        },
+        "match": true
+      },
+      {
+        "measure": "obligation_sum",
+        "snapshot": "1697318332.65",
+        "publisher": "1697318332.65",
+        "difference": "0.00",
+        "publisher_source": {
+          "endpoint": "https://api.usaspending.gov/api/v2/agency/068/obligations_by_award_category/",
+          "method": "GET",
+          "query": {
+            "fiscal_year": "2025"
+          },
+          "request_body": null,
+          "response_path": "results[category=contracts].aggregated_amount"
+        },
+        "match": true
+      },
+      {
+        "measure": "obligation_sum",
+        "snapshot": "1697318332.65",
+        "publisher": "1697318332.65",
+        "difference": "0.00",
+        "publisher_source": {
+          "endpoint": "https://api.usaspending.gov/api/v2/agency/068/awards/",
+          "method": "GET",
+          "query": {
+            "fiscal_year": "2025",
+            "award_type_codes": "A,B,C,D"
+          },
+          "request_body": null,
+          "response_path": "obligations"
+        },
+        "match": true
+      },
+      {
+        "measure": "obligation_sum",
+        "snapshot": "1697318332.65",
+        "publisher": "1697318332.65",
+        "difference": "0.00",
+        "publisher_source": {
+          "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/awarding_agency/",
+          "method": "POST",
+          "query": null,
+          "request_body": {
+            "filters": {
+              "award_type_codes": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "time_period": [
+                {
+                  "start_date": "2024-10-01",
+                  "end_date": "2025-09-30",
+                  "date_type": "action_date"
+                }
+              ],
+              "agencies": [
+                {
+                  "type": "awarding",
+                  "tier": "toptier",
+                  "name": "Environmental Protection Agency"
+                }
+              ]
+            },
+            "limit": 10,
+            "page": 1
+          },
+          "response_path": "results[name=Environmental Protection Agency].amount"
+        },
+        "match": true
+      }
+    ]
+  },
+  "counts": {
+    "values": 48,
+    "owner_api": 35,
+    "derived": 13
+  },
+  "values": [
+    {
+      "id": "transactions.count",
+      "tag": "owner_api",
+      "description": "Contract transactions (award types A, B, C, D) in the slice",
+      "value": 12687,
+      "unit": "transactions",
+      "dimensions": {},
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_transaction_count/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results.contracts"
+    },
+    {
+      "id": "obligations.total",
+      "tag": "owner_api",
+      "description": "Net contract obligations (award types A, B, C, D), EPA, FY2025",
+      "value": "1697318332.65",
+      "unit": "USD",
+      "dimensions": {},
+      "endpoint": "https://api.usaspending.gov/api/v2/agency/068/obligations_by_award_category/",
+      "method": "GET",
+      "query": {
+        "fiscal_year": "2025"
+      },
+      "request_body": null,
+      "capture_date": "2026-11-01",
+      "response_path": "results[category=contracts].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.01",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 1 of FY2025 (month 1 is October)",
+      "value": "90321565.67",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 1
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=1].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.02",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 2 of FY2025 (month 1 is October)",
+      "value": "60384929.67",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 2
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=2].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.03",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 3 of FY2025 (month 1 is October)",
+      "value": "127304190.15",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 3
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=3].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.04",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 4 of FY2025 (month 1 is October)",
+      "value": "311975420.85",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 4
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=4].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.05",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 5 of FY2025 (month 1 is October)",
+      "value": "151198107.99",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 5
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=5].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.06",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 6 of FY2025 (month 1 is October)",
+      "value": "66843656.91",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 6
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=6].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.07",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 7 of FY2025 (month 1 is October)",
+      "value": "80816007.20",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 7
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=7].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.08",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 8 of FY2025 (month 1 is October)",
+      "value": "79344605.92",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 8
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=8].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.09",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 9 of FY2025 (month 1 is October)",
+      "value": "111430879.28",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 9
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=9].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.10",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 10 of FY2025 (month 1 is October)",
+      "value": "138011170.20",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 10
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=10].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.11",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 11 of FY2025 (month 1 is October)",
+      "value": "112460065.43",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 11
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=11].aggregated_amount"
+    },
+    {
+      "id": "obligations.fiscal_month.12",
+      "tag": "owner_api",
+      "description": "Net contract obligations in fiscal month 12 of FY2025 (month 1 is October)",
+      "value": "367227733.38",
+      "unit": "USD",
+      "dimensions": {
+        "fiscal_year": 2025,
+        "fiscal_month": 12
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_over_time/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "group": "month",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[time_period.fiscal_year=2025,time_period.month=12].aggregated_amount"
+    },
+    {
+      "id": "obligations.recipient.DBD6KDKXWN65",
+      "tag": "owner_api",
+      "description": "Net contract obligations of recipient DBD6KDKXWN65 (ENVIRONMENTAL QUALITY MANAGEMENT, INC), rank 1 by the publisher",
+      "value": "141735682.10",
+      "unit": "USD",
+      "dimensions": {
+        "recipient_uei": "DBD6KDKXWN65",
+        "rank": 1
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/recipient/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[uei=DBD6KDKXWN65].amount"
+    },
+    {
+      "id": "obligations.recipient.VHPJR3MJWV49",
+      "tag": "owner_api",
+      "description": "Net contract obligations of recipient VHPJR3MJWV49 (SEVENSON ENVIRONMENTAL SERVICES, INC.), rank 2 by the publisher",
+      "value": "136907984.75",
+      "unit": "USD",
+      "dimensions": {
+        "recipient_uei": "VHPJR3MJWV49",
+        "rank": 2
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/recipient/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[uei=VHPJR3MJWV49].amount"
+    },
+    {
+      "id": "obligations.recipient.MHMPN3F73NX3",
+      "tag": "owner_api",
+      "description": "Net contract obligations of recipient MHMPN3F73NX3 (ENVIRONMENTAL RESTORATION LLC), rank 3 by the publisher",
+      "value": "115370521.15",
+      "unit": "USD",
+      "dimensions": {
+        "recipient_uei": "MHMPN3F73NX3",
+        "rank": 3
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/recipient/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[uei=MHMPN3F73NX3].amount"
+    },
+    {
+      "id": "obligations.recipient.Z4XGALW7L9K6",
+      "tag": "owner_api",
+      "description": "Net contract obligations of recipient Z4XGALW7L9K6 (WESTON SOLUTIONS INC), rank 4 by the publisher",
+      "value": "84868589.24",
+      "unit": "USD",
+      "dimensions": {
+        "recipient_uei": "Z4XGALW7L9K6",
+        "rank": 4
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/recipient/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[uei=Z4XGALW7L9K6].amount"
+    },
+    {
+      "id": "obligations.recipient.DK4TBEJRAR56",
+      "tag": "owner_api",
+      "description": "Net contract obligations of recipient DK4TBEJRAR56 (EASTERN RESEARCH GROUP INC), rank 5 by the publisher",
+      "value": "66893110.69",
+      "unit": "USD",
+      "dimensions": {
+        "recipient_uei": "DK4TBEJRAR56",
+        "rank": 5
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/recipient/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[uei=DK4TBEJRAR56].amount"
+    },
+    {
+      "id": "obligations.psc.F108",
+      "tag": "owner_api",
+      "description": "Net contract obligations of product or service code F108 (ENVIRONMENTAL SYSTEMS PROTECTION- ENVIRONMENTAL REMEDIATION), rank 1 by the publisher",
+      "value": "716008251.57",
+      "unit": "USD",
+      "dimensions": {
+        "psc_code": "F108",
+        "rank": 1
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/psc/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[code=F108].amount"
+    },
+    {
+      "id": "obligations.psc.R499",
+      "tag": "owner_api",
+      "description": "Net contract obligations of product or service code R499 (SUPPORT- PROFESSIONAL: OTHER), rank 2 by the publisher",
+      "value": "226716569.88",
+      "unit": "USD",
+      "dimensions": {
+        "psc_code": "R499",
+        "rank": 2
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/psc/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[code=R499].amount"
+    },
+    {
+      "id": "obligations.psc.R429",
+      "tag": "owner_api",
+      "description": "Net contract obligations of product or service code R429 (SUPPORT- PROFESSIONAL: EMERGENCY RESPONSE/DISASTER PLANNING/PREPAREDNESS SUPPORT), rank 3 by the publisher",
+      "value": "101778367.66",
+      "unit": "USD",
+      "dimensions": {
+        "psc_code": "R429",
+        "rank": 3
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/psc/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[code=R429].amount"
+    },
+    {
+      "id": "obligations.psc.F999",
+      "tag": "owner_api",
+      "description": "Net contract obligations of product or service code F999 (OTHER ENVIRONMENTAL SERVICES), rank 4 by the publisher",
+      "value": "67542562.18",
+      "unit": "USD",
+      "dimensions": {
+        "psc_code": "F999",
+        "rank": 4
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/psc/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[code=F999].amount"
+    },
+    {
+      "id": "obligations.psc.F115",
+      "tag": "owner_api",
+      "description": "Net contract obligations of product or service code F115 (ENVIRONMENTAL SYSTEMS PROTECTION- ENVIRONMENTAL CONSULTING AND LEGAL SUPPORT), rank 5 by the publisher",
+      "value": "51595004.66",
+      "unit": "USD",
+      "dimensions": {
+        "psc_code": "F115",
+        "rank": 5
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/psc/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[code=F115].amount"
+    },
+    {
+      "id": "obligations.naics.562910",
+      "tag": "owner_api",
+      "description": "Net contract obligations of NAICS code 562910 (Remediation Services), rank 1 by the publisher",
+      "value": "768867751.92",
+      "unit": "USD",
+      "dimensions": {
+        "naics_code": "562910",
+        "rank": 1
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/naics/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[code=562910].amount"
+    },
+    {
+      "id": "obligations.naics.541620",
+      "tag": "owner_api",
+      "description": "Net contract obligations of NAICS code 541620 (Environmental Consulting Services), rank 2 by the publisher",
+      "value": "349784383.93",
+      "unit": "USD",
+      "dimensions": {
+        "naics_code": "541620",
+        "rank": 2
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/naics/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[code=541620].amount"
+    },
+    {
+      "id": "obligations.naics.541611",
+      "tag": "owner_api",
+      "description": "Net contract obligations of NAICS code 541611 (Administrative Management and General Management Consulting Services), rank 3 by the publisher",
+      "value": "103690261.13",
+      "unit": "USD",
+      "dimensions": {
+        "naics_code": "541611",
+        "rank": 3
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/naics/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[code=541611].amount"
+    },
+    {
+      "id": "obligations.naics.541512",
+      "tag": "owner_api",
+      "description": "Net contract obligations of NAICS code 541512 (Computer Systems Design Services), rank 4 by the publisher",
+      "value": "58608033.31",
+      "unit": "USD",
+      "dimensions": {
+        "naics_code": "541512",
+        "rank": 4
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/naics/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[code=541512].amount"
+    },
+    {
+      "id": "obligations.naics.541715",
+      "tag": "owner_api",
+      "description": "Net contract obligations of NAICS code 541715 (Research and Development in the Physical, Engineering, and Life Sciences (except Nanotechnology and Biotechnology)), rank 5 by the publisher",
+      "value": "52849733.20",
+      "unit": "USD",
+      "dimensions": {
+        "naics_code": "541715",
+        "rank": 5
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/naics/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 5,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[code=541715].amount"
+    },
+    {
+      "id": "obligations.sub_agency.environmental_protection_agency",
+      "tag": "owner_api",
+      "description": "Net contract obligations awarded by the sub-agency Environmental Protection Agency",
+      "value": "1697318332.65",
+      "unit": "USD",
+      "dimensions": {
+        "sub_agency_name": "Environmental Protection Agency"
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_category/awarding_subagency/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "limit": 10,
+        "page": 1
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[name=Environmental Protection Agency].amount"
+    },
+    {
+      "id": "obligations.pop_state.CA",
+      "tag": "owner_api",
+      "description": "Net contract obligations performed in California (CA), rank 1 of the states in the response",
+      "value": "238749959.14",
+      "unit": "USD",
+      "dimensions": {
+        "pop_state_code": "CA",
+        "rank": 1
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_geography/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "scope": "place_of_performance",
+        "geo_layer": "state",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[shape_code=CA].aggregated_amount"
+    },
+    {
+      "id": "obligations.pop_state.OH",
+      "tag": "owner_api",
+      "description": "Net contract obligations performed in Ohio (OH), rank 2 of the states in the response",
+      "value": "169208815.00",
+      "unit": "USD",
+      "dimensions": {
+        "pop_state_code": "OH",
+        "rank": 2
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_geography/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "scope": "place_of_performance",
+        "geo_layer": "state",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[shape_code=OH].aggregated_amount"
+    },
+    {
+      "id": "obligations.pop_state.VA",
+      "tag": "owner_api",
+      "description": "Net contract obligations performed in Virginia (VA), rank 3 of the states in the response",
+      "value": "160568186.52",
+      "unit": "USD",
+      "dimensions": {
+        "pop_state_code": "VA",
+        "rank": 3
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_geography/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "scope": "place_of_performance",
+        "geo_layer": "state",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[shape_code=VA].aggregated_amount"
+    },
+    {
+      "id": "obligations.pop_state.DC",
+      "tag": "owner_api",
+      "description": "Net contract obligations performed in District Of Columbia (DC), rank 4 of the states in the response",
+      "value": "138024824.27",
+      "unit": "USD",
+      "dimensions": {
+        "pop_state_code": "DC",
+        "rank": 4
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_geography/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "scope": "place_of_performance",
+        "geo_layer": "state",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[shape_code=DC].aggregated_amount"
+    },
+    {
+      "id": "obligations.pop_state.TX",
+      "tag": "owner_api",
+      "description": "Net contract obligations performed in Texas (TX), rank 5 of the states in the response",
+      "value": "102283702.42",
+      "unit": "USD",
+      "dimensions": {
+        "pop_state_code": "TX",
+        "rank": 5
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/search/spending_by_geography/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "scope": "place_of_performance",
+        "geo_layer": "state",
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        }
+      },
+      "capture_date": "2026-11-01",
+      "response_path": "results[shape_code=TX].aggregated_amount"
+    },
+    {
+      "id": "awards.active_in_period.count",
+      "tag": "derived",
+      "description": "Distinct contract awards with at least one transaction in the period (ADR-0002)",
+      "value": 6016,
+      "unit": "awards",
+      "dimensions": {},
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select count(distinct contract_award_unique_key) from snapshot"
+      }
+    },
+    {
+      "id": "awards.net_negative.count",
+      "tag": "derived",
+      "description": "Awards whose net obligation in the period is below zero",
+      "value": 1710,
+      "unit": "awards",
+      "dimensions": {},
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select count(*) from (select contract_award_unique_key, sum(federal_action_obligation) as net from snapshot group by contract_award_unique_key) where net < 0"
+      }
+    },
+    {
+      "id": "obligations.deobligations.sum",
+      "tag": "derived",
+      "description": "Sum of the negative transaction obligations (de-obligations) in the period",
+      "value": "-276256715.93",
+      "unit": "USD",
+      "dimensions": {},
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select sum(federal_action_obligation) from snapshot where federal_action_obligation < 0"
+      }
+    },
+    {
+      "id": "awards.average_net_obligation",
+      "tag": "derived",
+      "description": "Net obligations divided by the awards active in the period",
+      "value": "282134.03",
+      "unit": "USD",
+      "dimensions": {},
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select sum(federal_action_obligation), count(distinct contract_award_unique_key) from snapshot",
+        "formula": "round_half_even(1697318332.65 / 6016, 2)"
+      }
+    },
+    {
+      "id": "recipients.top10_reporting_share",
+      "tag": "derived",
+      "description": "Share of net obligations held by the 10 largest recipients at the reporting level (parent UEI, else the recipient's own UEI; ADR-0002)",
+      "value": "0.449020",
+      "unit": "ratio",
+      "dimensions": {},
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "with by_reporting as (select coalesce(recipient_parent_uei, recipient_uei) as reporting_uei, sum(federal_action_obligation) as net from snapshot group by 1), ranked as (select net, row_number() over (order by net desc, reporting_uei) as rank from by_reporting) select (select sum(net) from ranked where rank <= 10), (select sum(federal_action_obligation) from snapshot)",
+        "formula": "round_half_even(762130284.34 / 1697318332.65, 6)"
+      }
+    },
+    {
+      "id": "award.most_negative.net_obligation",
+      "tag": "derived",
+      "description": "Net obligation in the period of the award with the lowest net obligation",
+      "value": "-4877871.74",
+      "unit": "USD",
+      "dimensions": {
+        "award_key": "CONT_AWD_68HE0924F0050_6800_68HE0919D0001_6800"
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select contract_award_unique_key, sum(federal_action_obligation) as net from snapshot group by contract_award_unique_key order by net, contract_award_unique_key limit 1"
+      }
+    },
+    {
+      "id": "obligations.extent_competed.A",
+      "tag": "derived",
+      "description": "Net contract obligations with extent competed code A",
+      "value": "936214658.91",
+      "unit": "USD",
+      "dimensions": {
+        "competition_code": "A"
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select extent_competed_code, sum(federal_action_obligation) from snapshot group by extent_competed_code order by extent_competed_code nulls last"
+      }
+    },
+    {
+      "id": "obligations.extent_competed.B",
+      "tag": "derived",
+      "description": "Net contract obligations with extent competed code B",
+      "value": "59448927.17",
+      "unit": "USD",
+      "dimensions": {
+        "competition_code": "B"
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select extent_competed_code, sum(federal_action_obligation) from snapshot group by extent_competed_code order by extent_competed_code nulls last"
+      }
+    },
+    {
+      "id": "obligations.extent_competed.C",
+      "tag": "derived",
+      "description": "Net contract obligations with extent competed code C",
+      "value": "45698086.33",
+      "unit": "USD",
+      "dimensions": {
+        "competition_code": "C"
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select extent_competed_code, sum(federal_action_obligation) from snapshot group by extent_competed_code order by extent_competed_code nulls last"
+      }
+    },
+    {
+      "id": "obligations.extent_competed.D",
+      "tag": "derived",
+      "description": "Net contract obligations with extent competed code D",
+      "value": "628056676.64",
+      "unit": "USD",
+      "dimensions": {
+        "competition_code": "D"
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select extent_competed_code, sum(federal_action_obligation) from snapshot group by extent_competed_code order by extent_competed_code nulls last"
+      }
+    },
+    {
+      "id": "obligations.extent_competed.F",
+      "tag": "derived",
+      "description": "Net contract obligations with extent competed code F",
+      "value": "14023227.19",
+      "unit": "USD",
+      "dimensions": {
+        "competition_code": "F"
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select extent_competed_code, sum(federal_action_obligation) from snapshot group by extent_competed_code order by extent_competed_code nulls last"
+      }
+    },
+    {
+      "id": "obligations.extent_competed.G",
+      "tag": "derived",
+      "description": "Net contract obligations with extent competed code G",
+      "value": "13924143.85",
+      "unit": "USD",
+      "dimensions": {
+        "competition_code": "G"
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select extent_competed_code, sum(federal_action_obligation) from snapshot group by extent_competed_code order by extent_competed_code nulls last"
+      }
+    },
+    {
+      "id": "obligations.extent_competed.unreported",
+      "tag": "derived",
+      "description": "Net contract obligations with extent competed code missing at the source",
+      "value": "-47387.44",
+      "unit": "USD",
+      "dimensions": {
+        "competition_code": null
+      },
+      "endpoint": "https://api.usaspending.gov/api/v2/download/transactions/",
+      "method": "POST",
+      "query": null,
+      "request_body": {
+        "filters": {
+          "award_type_codes": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "time_period": [
+            {
+              "start_date": "2024-10-01",
+              "end_date": "2025-09-30",
+              "date_type": "action_date"
+            }
+          ],
+          "agencies": [
+            {
+              "type": "awarding",
+              "tier": "toptier",
+              "name": "Environmental Protection Agency"
+            }
+          ]
+        },
+        "columns": [
+          "contract_transaction_unique_key",
+          "contract_award_unique_key",
+          "award_id_piid",
+          "modification_number",
+          "federal_action_obligation",
+          "action_date",
+          "action_date_fiscal_year",
+          "awarding_agency_code",
+          "awarding_sub_agency_code",
+          "awarding_sub_agency_name",
+          "recipient_uei",
+          "recipient_name",
+          "recipient_parent_uei",
+          "recipient_parent_name",
+          "primary_place_of_performance_country_code",
+          "primary_place_of_performance_state_code",
+          "award_type_code",
+          "award_type",
+          "product_or_service_code",
+          "product_or_service_code_description",
+          "naics_code",
+          "naics_description",
+          "extent_competed_code",
+          "extent_competed"
+        ],
+        "file_format": "csv"
+      },
+      "capture_date": "2026-11-01",
+      "derivation": {
+        "sql": "select extent_competed_code, sum(federal_action_obligation) from snapshot group by extent_competed_code order by extent_competed_code nulls last"
+      }
+    }
+  ]
+}
