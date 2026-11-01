@@ -247,6 +247,19 @@ def test_competition_rate_counts_a_missing_code_as_not_competed(run) -> None:
     assert run({"metric": "competition_rate", "filters": filters}) == [(0.0,)]
 
 
+# --- empty selections ---------------------------------------------------------------------------
+
+
+def test_a_total_over_an_empty_selection_is_one_row(run) -> None:
+    nothing = {"time_range": {"start": "2030-10-01", "end": "2031-09-30"}}
+    assert run({"metric": "obligations", **nothing}) == [(None,)]
+    assert run({"metric": "award_count", **nothing}) == [(0,)]
+    assert run({"metric": "avg_award_value", **nothing}) == [(None,)]
+    assert run({"metric": "supplier_concentration_top10", **nothing}) == [(None,)]
+    assert run({"metric": "competition_rate", **nothing}) == [(None,)]
+    assert run({"metric": "obligations", "grain": "fiscal_month", **nothing}) == []
+
+
 # --- the fixture itself ----------------------------------------------------------------------
 
 
