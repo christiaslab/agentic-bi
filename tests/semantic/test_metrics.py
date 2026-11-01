@@ -247,6 +247,33 @@ def test_competition_rate_counts_a_missing_code_as_not_competed(run) -> None:
     assert run({"metric": "competition_rate", "filters": filters}) == [(0.0,)]
 
 
+# --- every ratio metric by fiscal month --------------------------------------------------------
+
+
+def test_avg_award_value_by_fiscal_month(run) -> None:
+    rows = run({"metric": "avg_award_value", "grain": "fiscal_month", "time_range": FY2025})
+    # Month 1: 1300 / 2 (W01 W02); 2: 800 / 2 (W01 W13); 5: W03's -450 alone; 12: 900 / 2.
+    expected = [650, 400, 200, 1200, -450, 1100, 1000, 900, 800, 700, 600, 450]
+    assert [(year, month) for year, month, _ in rows] == [(2025, m) for m in range(1, 13)]
+    assert [value for _, _, value in rows] == [pytest.approx(v) for v in expected]
+
+
+def test_competition_rate_by_fiscal_month(run) -> None:
+    rows = run({"metric": "competition_rate", "grain": "fiscal_month", "time_range": FY2025})
+    # Month 1: 1000 of 1300; 2: 500 of 800; 5: -450 of -450 (a competed de-obligation alone);
+    # 11: T12 has no code, so 0.
+    expected = [1000 / 1300, 500 / 800, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1]
+    assert [value for _, _, value in rows] == [pytest.approx(v) for v in expected]
+
+
+def test_supplier_concentration_by_fiscal_month(run) -> None:
+    rows = run(
+        {"metric": "supplier_concentration_top10", "grain": "fiscal_month", "time_range": FY2025}
+    )
+    # At most two recipients a month, so every month is 1, the net-negative month 5 included.
+    assert [(month, value) for _, month, value in rows] == [(m, 1.0) for m in range(1, 13)]
+
+
 # --- empty selections ---------------------------------------------------------------------------
 
 
