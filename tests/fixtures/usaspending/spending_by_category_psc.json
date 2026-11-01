@@ -1,0 +1,53 @@
+{
+  "category": "psc",
+  "spending_level": "transactions",
+  "limit": 5,
+  "page_metadata": {
+    "page": 1,
+    "next": 2,
+    "previous": null,
+    "hasNext": true,
+    "hasPrevious": false
+  },
+  "results": [
+    {
+      "id": null,
+      "code": "F108",
+      "name": "ENVIRONMENTAL SYSTEMS PROTECTION- ENVIRONMENTAL REMEDIATION",
+      "amount": 716008251.57,
+      "total_outlays": null
+    },
+    {
+      "id": null,
+      "code": "R499",
+      "name": "SUPPORT- PROFESSIONAL: OTHER",
+      "amount": 226716569.88,
+      "total_outlays": null
+    },
+    {
+      "id": null,
+      "code": "R429",
+      "name": "SUPPORT- PROFESSIONAL: EMERGENCY RESPONSE/DISASTER PLANNING/PREPAREDNESS SUPPORT",
+      "amount": 101778367.66,
+      "total_outlays": null
+    },
+    {
+      "id": null,
+      "code": "F999",
+      "name": "OTHER ENVIRONMENTAL SERVICES",
+      "amount": 67542562.18,
+      "total_outlays": null
+    },
+    {
+      "id": null,
+      "code": "F115",
+      "name": "ENVIRONMENTAL SYSTEMS PROTECTION- ENVIRONMENTAL CONSULTING AND LEGAL SUPPORT",
+      "amount": 51595004.66,
+      "total_outlays": null
+    }
+  ],
+  "messages": [
+    "For searches, time period start and end dates are currently limited to an earliest date of 2007-10-01.  For data going back to 2000-10-01, use either the Custom Award Download feature on the website or one of our download or bulk_download API endpoints as listed on https://api.usaspending.gov/docs/endpoints. ",
+    "'subawards' will be deprecated in the future. Set \u2018spending_level\u2019 to \u2018subawards\u2019 instead. See documentation for more information. "
+  ]
+}

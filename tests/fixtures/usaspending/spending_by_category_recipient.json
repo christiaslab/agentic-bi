@@ -1,0 +1,58 @@
+{
+  "category": "recipient",
+  "spending_level": "transactions",
+  "limit": 5,
+  "page_metadata": {
+    "page": 1,
+    "next": 2,
+    "previous": null,
+    "hasNext": true,
+    "hasPrevious": false
+  },
+  "results": [
+    {
+      "amount": 141735682.1,
+      "recipient_id": "1c8b0097-7be5-c28a-b664-960f96ebe896-C",
+      "name": "ENVIRONMENTAL QUALITY MANAGEMENT, INC",
+      "code": "622824886",
+      "uei": "DBD6KDKXWN65",
+      "total_outlays": null
+    },
+    {
+      "amount": 136907984.75,
+      "recipient_id": "b3a52d53-3e9f-f073-0b82-1b204931fc0c-C",
+      "name": "SEVENSON ENVIRONMENTAL SERVICES, INC.",
+      "code": "083535773",
+      "uei": "VHPJR3MJWV49",
+      "total_outlays": null
+    },
+    {
+      "amount": 115370521.15,
+      "recipient_id": "c54948f8-df87-d7af-c857-f488f3707061-C",
+      "name": "ENVIRONMENTAL RESTORATION LLC",
+      "code": "008198421",
+      "uei": "MHMPN3F73NX3",
+      "total_outlays": null
+    },
+    {
+      "amount": 84868589.24,
+      "recipient_id": "ed87cc13-6006-a345-af34-144da0c3fa4c-C",
+      "name": "WESTON SOLUTIONS INC",
+      "code": "044519429",
+      "uei": "Z4XGALW7L9K6",
+      "total_outlays": null
+    },
+    {
+      "amount": 66893110.69,
+      "recipient_id": "c49e7764-e766-a510-906f-28a765951109-C",
+      "name": "EASTERN RESEARCH GROUP INC",
+      "code": "112947395",
+      "uei": "DK4TBEJRAR56",
+      "total_outlays": null
+    }
+  ],
+  "messages": [
+    "For searches, time period start and end dates are currently limited to an earliest date of 2007-10-01.  For data going back to 2000-10-01, use either the Custom Award Download feature on the website or one of our download or bulk_download API endpoints as listed on https://api.usaspending.gov/docs/endpoints. ",
+    "'subawards' will be deprecated in the future. Set \u2018spending_level\u2019 to \u2018subawards\u2019 instead. See documentation for more information. "
+  ]
+}
