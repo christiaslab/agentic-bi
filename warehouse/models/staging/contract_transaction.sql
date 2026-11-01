@@ -33,9 +33,8 @@ MODEL (
     reporting_name VARCHAR,
     pop_state_code VARCHAR
   ),
+  /* the key audits sit on the fact (contract); this one checks the slice */
   audits (
-    not_null(columns := (contract_transaction_unique_key)),
-    unique_values(columns := (contract_transaction_unique_key)),
     accepted_values(column := awarding_agency_code, is_in := ('068'))
   )
 );
