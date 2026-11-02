@@ -20,11 +20,12 @@ import os
 import sys
 from typing import Any, TextIO
 
+from .checks import CheckResult
 from .judge import Judge, JudgeError, configured_model
 from .live import AnthropicJudge, LiveJudgeUnavailable
 from .replay import ReplayFileError, ReplayJudge
-from .verdict import MalformedVerdictError
-from .verify import VerifierInputError, verify
+from .verdict import Issue, MalformedVerdictError
+from .verify import Verification, VerifierInputError, check_question, verify
 
 KEY_ENV = "ANTHROPIC_API_KEY"
 _NOT_JSON = object()
@@ -52,10 +53,20 @@ def main(argv: list[str] | None = None, out: TextIO | None = None) -> int:
         judge, note, unavailable = _choose_judge(args.replay, args.model)
         if query is _NOT_JSON:
             # Not JSON at all: the schema check fails before anything else.
-            verification = verify(args.question, None, judge=None)
+            check_question(args.question)
+            checks = CheckResult(
+                (
+                    Issue(
+                        code="invalid_query",
+                        field="query",
+                        explanation="the query is not valid JSON",
+                        refusal_code="invalid_query",
+                    ),
+                ),
+                None,
+            )
+            verification = Verification(args.question, args.query, checks, checks.verdict())
             report = verification.to_dict()
-            report["query"] = args.query
-            report["deterministic"]["issues"][0]["explanation"] = "the query is not valid JSON"
         else:
             verification = verify(args.question, query, judge=judge)
             report = verification.to_dict()

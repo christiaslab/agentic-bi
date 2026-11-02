@@ -43,6 +43,14 @@ class Verification:
         }
 
 
+def check_question(question: Any) -> None:
+    """Raise ``VerifierInputError`` unless the question is non-empty text of a usable length."""
+    if not isinstance(question, str) or not question.strip():
+        raise VerifierInputError("the question must be non-empty text")
+    if len(question) > MAX_QUESTION_LENGTH:
+        raise VerifierInputError(f"the question is longer than {MAX_QUESTION_LENGTH} characters")
+
+
 def build_request(
     question: str, query: Mapping[str, Any], catalog: Catalog | None = None
 ) -> JudgeRequest:
@@ -69,10 +77,7 @@ def verify(
     judge, a query that passes the checks has no verdict: intent was not judged. A judge
     whose text is not a valid verdict raises ``MalformedVerdictError``; it is never a pass.
     """
-    if not isinstance(question, str) or not question.strip():
-        raise VerifierInputError("the question must be non-empty text")
-    if len(question) > MAX_QUESTION_LENGTH:
-        raise VerifierInputError(f"the question is longer than {MAX_QUESTION_LENGTH} characters")
+    check_question(question)
     catalog = catalog if catalog is not None else default_catalog()
     checks = run_checks(query, catalog)
     if not checks.passed:
