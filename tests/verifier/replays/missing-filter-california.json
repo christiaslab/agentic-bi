@@ -1,0 +1,22 @@
+{
+  "replay_id": "missing-filter-california",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. q18 with its state filter left out.",
+  "prompt_version": "v1",
+  "question_id": "q18",
+  "question": "How much EPA contract work was performed in California?",
+  "query": {
+    "metric": "obligations"
+  },
+  "response": {
+    "verdict": "inconsistent",
+    "issues": [
+      {
+        "code": "missing_filter",
+        "field": "filters",
+        "explanation": "The question restricts the work to California; the query has no place-of-performance filter."
+      }
+    ],
+    "rationale": "Without the state filter the query returns the whole slice."
+  }
+}

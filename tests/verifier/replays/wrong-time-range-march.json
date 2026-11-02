@@ -1,0 +1,26 @@
+{
+  "replay_id": "wrong-time-range-march",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. q05 with the fiscal-month confusion: March, calendar month 3, taken as fiscal month 3 (December).",
+  "prompt_version": "v1",
+  "question_id": "q05",
+  "question": "How much did EPA obligate on contracts in March 2025?",
+  "query": {
+    "metric": "obligations",
+    "time_range": {
+      "start": "2024-12-01",
+      "end": "2024-12-31"
+    }
+  },
+  "response": {
+    "verdict": "inconsistent",
+    "issues": [
+      {
+        "code": "wrong_time_range",
+        "field": "time_range",
+        "explanation": "The question names March 2025; the query covers December 2024, which is fiscal month 3: March taken as the third month of the fiscal year."
+      }
+    ],
+    "rationale": "March 2025 is fiscal month 6, from 2025-03-01 to 2025-03-31."
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "replay_id": "malformed-consistent-with-issue",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. A verdict that is consistent and names an issue, which the schema rules refuse.",
+  "prompt_version": "v1",
+  "question_id": "q26",
+  "question": "On average, how many dollars were obligated per active contract award in fiscal 2025?",
+  "query": {
+    "metric": "avg_award_value",
+    "time_range": {
+      "start": "2024-10-01",
+      "end": "2025-09-30"
+    }
+  },
+  "response": {
+    "verdict": "consistent",
+    "issues": [
+      {
+        "code": "wrong_metric",
+        "field": "metric",
+        "explanation": "No real problem; this verdict contradicts itself."
+      }
+    ],
+    "rationale": "Self-contradicting verdict."
+  }
+}

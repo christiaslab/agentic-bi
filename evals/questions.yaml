@@ -1,0 +1,413 @@
+# The eval question set (S5a, ADR-0006). Field guide and scoring: evals/README.md.
+#
+# Each question names its expected outcome. An answer carries the structured query that
+# answers it as the catalog defines its terms; a refusal carries the reason and no query.
+# golden_id links a question to docs/golden/golden.json when the expected query's result
+# should reproduce that value. Questions marked requires: [top_n] use order_by and limit,
+# which the structured query gains in S4; S5b scores them once that is on main.
+#
+# Written by hand on 2026-11-02 from catalog/metrics.yaml, docs/golden/golden.json and the
+# committed snapshot. Nothing here was produced by a model.
+
+version: 1
+
+questions:
+  # --- Net obligations: totals, months, quarters, years -------------------------------
+
+  - id: q01
+    question: What were EPA's total net contract obligations in fiscal year 2025?
+    outcome: answer
+    query: {metric: obligations, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    golden_id: obligations.total
+    paraphrase_group: total_obligations
+
+  - id: q02
+    question: How much did the EPA obligate on contracts in FY2025, counting de-obligations as negative amounts?
+    outcome: answer
+    query: {metric: obligations, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    golden_id: obligations.total
+    paraphrase_group: total_obligations
+
+  - id: q03
+    question: Show EPA's net contract obligations for each fiscal month of FY2025.
+    outcome: answer
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    golden_id: [obligations.fiscal_month.01, obligations.fiscal_month.02, obligations.fiscal_month.03, obligations.fiscal_month.04, obligations.fiscal_month.05, obligations.fiscal_month.06, obligations.fiscal_month.07, obligations.fiscal_month.08, obligations.fiscal_month.09, obligations.fiscal_month.10, obligations.fiscal_month.11, obligations.fiscal_month.12]
+    paraphrase_group: monthly_obligations
+
+  - id: q04
+    question: What is the month-by-month trend of contract obligations across fiscal 2025?
+    outcome: answer
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    golden_id: [obligations.fiscal_month.01, obligations.fiscal_month.02, obligations.fiscal_month.03, obligations.fiscal_month.04, obligations.fiscal_month.05, obligations.fiscal_month.06, obligations.fiscal_month.07, obligations.fiscal_month.08, obligations.fiscal_month.09, obligations.fiscal_month.10, obligations.fiscal_month.11, obligations.fiscal_month.12]
+    paraphrase_group: monthly_obligations
+
+  - id: q05
+    question: How much did EPA obligate on contracts in March 2025?
+    outcome: answer
+    query: {metric: obligations, time_range: {start: "2025-03-01", end: "2025-03-31"}}
+    golden_id: obligations.fiscal_month.06
+    note: March is fiscal month 6; the calendar month is the right range, not fiscal month 3 (December).
+
+  - id: q06
+    question: What were net contract obligations in the first quarter of fiscal year 2025?
+    outcome: answer
+    query: {metric: obligations, time_range: {start: "2024-10-01", end: "2024-12-31"}}
+    note: Fiscal quarter 1 is October to December 2024. No golden value holds the quarter total.
+
+  - id: q07
+    question: Break down FY2025 contract obligations by fiscal quarter.
+    outcome: answer
+    query: {metric: obligations, grain: fiscal_quarter, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  - id: q08
+    question: What are EPA's net contract obligations by fiscal year?
+    outcome: answer
+    query: {metric: obligations, grain: fiscal_year}
+    golden_id: obligations.total
+    note: The slice holds fiscal year 2025 only, so the answer is one row, equal to the total.
+
+  # --- Net obligations by a dimension or under a filter ---------------------------------
+
+  - id: q09
+    question: How much was obligated under each contract award type in FY2025?
+    outcome: answer
+    query: {metric: obligations, dimensions: [award_type], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  - id: q10
+    question: How much was obligated on contracts other than definitive contracts in FY2025?
+    outcome: answer
+    query: {metric: obligations, filters: [{field: award_type, op: ne, value: D}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    note: Award type D is a definitive contract.
+
+  - id: q11
+    question: What were net contract obligations by awarding sub-agency?
+    outcome: answer
+    query: {metric: obligations, dimensions: [sub_agency]}
+    golden_id: obligations.sub_agency.environmental_protection_agency
+    note: The slice has one sub-agency, code 6800 (Environmental Protection Agency); the golden value is keyed by its name.
+
+  - id: q12
+    question: How much was obligated under each extent-competed code?
+    outcome: answer
+    query: {metric: obligations, dimensions: [competition]}
+    golden_id: [obligations.extent_competed.A, obligations.extent_competed.B, obligations.extent_competed.C, obligations.extent_competed.D, obligations.extent_competed.F, obligations.extent_competed.G, obligations.extent_competed.unreported]
+    note: The row with no code reproduces obligations.extent_competed.unreported.
+
+  - id: q13
+    question: What were net obligations on transactions with extent-competed code A?
+    outcome: answer
+    query: {metric: obligations, filters: [{field: competition, op: eq, value: A}]}
+    golden_id: obligations.extent_competed.A
+
+  - id: q14
+    question: Compare FY2025 obligations on competed and not-competed transactions.
+    outcome: answer
+    query: {metric: obligations, dimensions: [competed], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  - id: q15
+    question: How much did recipient DBD6KDKXWN65 receive in net contract obligations?
+    outcome: answer
+    query: {metric: obligations, filters: [{field: recipient, op: eq, value: DBD6KDKXWN65}]}
+    golden_id: obligations.recipient.DBD6KDKXWN65
+    note: The publisher's value is at the recipient level; the catalog's recipient is the reporting (parent) UEI. They agree for this UEI in the snapshot; S3b's reproduction is the proof.
+
+  - id: q16
+    question: What were net obligations for product and service code F108?
+    outcome: answer
+    query: {metric: obligations, filters: [{field: psc, op: eq, value: F108}]}
+    golden_id: obligations.psc.F108
+
+  - id: q17
+    question: How much was obligated under NAICS code 562910, remediation services?
+    outcome: answer
+    query: {metric: obligations, filters: [{field: naics, op: eq, value: "562910"}]}
+    golden_id: obligations.naics.562910
+
+  - id: q18
+    question: How much EPA contract work was performed in California?
+    outcome: answer
+    query: {metric: obligations, filters: [{field: pop_state, op: eq, value: CA}]}
+    golden_id: obligations.pop_state.CA
+    paraphrase_group: california_obligations
+
+  - id: q19
+    question: What were EPA's net contract obligations for work whose place of performance is CA?
+    outcome: answer
+    query: {metric: obligations, filters: [{field: pop_state, op: eq, value: CA}]}
+    golden_id: obligations.pop_state.CA
+    paraphrase_group: california_obligations
+
+  - id: q20
+    question: How much was obligated for work performed outside Virginia, Maryland and the District of Columbia?
+    outcome: answer
+    query: {metric: obligations, filters: [{field: pop_state, op: not_in, value: [VA, MD, DC]}]}
+    note: not_in keeps work performed abroad (no state), which is outside all three.
+
+  # --- Award count -----------------------------------------------------------------------
+
+  - id: q21
+    question: How many contract awards were active in fiscal year 2025?
+    outcome: answer
+    query: {metric: award_count, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    golden_id: awards.active_in_period.count
+    paraphrase_group: active_awards
+
+  - id: q22
+    question: Count the distinct contract awards that had at least one transaction during FY2025.
+    outcome: answer
+    query: {metric: award_count, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    golden_id: awards.active_in_period.count
+    paraphrase_group: active_awards
+
+  - id: q23
+    question: How many awards of types A and B were active in each fiscal month of FY2025?
+    outcome: answer
+    query: {metric: award_count, grain: fiscal_month, filters: [{field: award_type, op: in, value: [A, B]}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  - id: q24
+    question: How many awards with at least one competed transaction were active in FY2025?
+    outcome: answer
+    query: {metric: award_count, filters: [{field: competed, op: eq, value: true}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  # --- Average award value ----------------------------------------------------------------
+
+  - id: q25
+    question: What was the average net obligation per active award in FY2025?
+    outcome: answer
+    query: {metric: avg_award_value, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    golden_id: awards.average_net_obligation
+    paraphrase_group: average_award
+    note: The golden value is rounded half-even to the cent; the metric is a decimal fraction.
+
+  - id: q26
+    question: On average, how many dollars were obligated per active contract award in fiscal 2025?
+    outcome: answer
+    query: {metric: avg_award_value, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    golden_id: awards.average_net_obligation
+    paraphrase_group: average_award
+
+  - id: q27
+    question: What was the average award value of definitive contracts in each fiscal quarter of FY2025?
+    outcome: answer
+    query: {metric: avg_award_value, grain: fiscal_quarter, filters: [{field: award_type, op: eq, value: D}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  # --- Supplier concentration ---------------------------------------------------------
+
+  - id: q28
+    question: What share of FY2025 net obligations went to the ten largest recipients?
+    outcome: answer
+    query: {metric: supplier_concentration_top10, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    golden_id: recipients.top10_reporting_share
+    paraphrase_group: top10_share
+
+  - id: q29
+    question: How concentrated was EPA's contract spending among its top ten contractors in fiscal 2025?
+    outcome: answer
+    query: {metric: supplier_concentration_top10, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    golden_id: recipients.top10_reporting_share
+    paraphrase_group: top10_share
+
+  - id: q30
+    question: What was the top-ten supplier concentration for each contract award type?
+    outcome: answer
+    query: {metric: supplier_concentration_top10, dimensions: [award_type]}
+
+  # --- Competition rate -------------------------------------------------------------------
+
+  - id: q31
+    question: What share of FY2025 net obligations was competed?
+    outcome: answer
+    query: {metric: competition_rate, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    paraphrase_group: competition_share
+    note: No golden value holds the rate; it follows from the extent-competed golden values and the seed mapping.
+
+  - id: q32
+    question: What fraction of EPA contract dollars in fiscal 2025 went through competition?
+    outcome: answer
+    query: {metric: competition_rate, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    paraphrase_group: competition_share
+
+  - id: q33
+    question: What was the competition rate for contract work performed in California?
+    outcome: answer
+    query: {metric: competition_rate, filters: [{field: pop_state, op: eq, value: CA}]}
+
+  - id: q34
+    question: What was the competition rate in each fiscal month of FY2025?
+    outcome: answer
+    query: {metric: competition_rate, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  # --- Top-N (order_by and limit arrive with S4) -----------------------------------------
+
+  - id: q35
+    question: Which five recipients received the most net contract obligations in FY2025?
+    outcome: answer
+    query: {metric: obligations, dimensions: [recipient], time_range: {start: "2024-10-01", end: "2025-09-30"}, order_by: {field: obligations, direction: desc}, limit: 5}
+    requires: [top_n]
+    golden_id: [obligations.recipient.DBD6KDKXWN65, obligations.recipient.VHPJR3MJWV49, obligations.recipient.MHMPN3F73NX3, obligations.recipient.DK4TBEJRAR56]
+    paraphrase_group: top5_recipients
+    note: The catalog ranks reporting (parent) UEIs. The publisher's rank 4, Z4XGALW7L9K6, is a recipient-level UEI that does not lead at the reporting level, so its golden value is not linked and the fifth row differs from the publisher's list.
+
+  - id: q36
+    question: Who were EPA's top 5 contractors by net obligations in fiscal 2025?
+    outcome: answer
+    query: {metric: obligations, dimensions: [recipient], time_range: {start: "2024-10-01", end: "2025-09-30"}, order_by: {field: obligations, direction: desc}, limit: 5}
+    requires: [top_n]
+    golden_id: [obligations.recipient.DBD6KDKXWN65, obligations.recipient.VHPJR3MJWV49, obligations.recipient.MHMPN3F73NX3, obligations.recipient.DK4TBEJRAR56]
+    paraphrase_group: top5_recipients
+
+  - id: q37
+    question: Which five product and service codes had the highest net obligations?
+    outcome: answer
+    query: {metric: obligations, dimensions: [psc], order_by: {field: obligations, direction: desc}, limit: 5}
+    requires: [top_n]
+    golden_id: [obligations.psc.F108, obligations.psc.R499, obligations.psc.R429, obligations.psc.F999, obligations.psc.F115]
+
+  - id: q38
+    question: What are the top five NAICS codes by contract obligations?
+    outcome: answer
+    query: {metric: obligations, dimensions: [naics], order_by: {field: obligations, direction: desc}, limit: 5}
+    requires: [top_n]
+    golden_id: [obligations.naics.562910, obligations.naics.541620, obligations.naics.541611, obligations.naics.541512, obligations.naics.541715]
+
+  - id: q39
+    question: In which five states was the most EPA contract money obligated?
+    outcome: answer
+    query: {metric: obligations, dimensions: [pop_state], order_by: {field: obligations, direction: desc}, limit: 5}
+    requires: [top_n]
+    golden_id: [obligations.pop_state.CA, obligations.pop_state.OH, obligations.pop_state.VA, obligations.pop_state.DC, obligations.pop_state.TX]
+
+  - id: q40
+    question: Which five places of performance had the lowest net obligations?
+    outcome: answer
+    query: {metric: obligations, dimensions: [pop_state], order_by: {field: obligations, direction: asc}, limit: 5}
+    requires: [top_n]
+    note: Net-negative states rank first. Work performed abroad forms one group with no state.
+
+  - id: q41
+    question: Which fiscal month of FY2025 had the highest net contract obligations?
+    outcome: answer
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}, order_by: {field: obligations, direction: desc}, limit: 1}
+    requires: [top_n]
+    golden_id: obligations.fiscal_month.12
+    note: Fiscal month 12 (September) holds the largest of the twelve golden monthly values.
+
+  - id: q42
+    question: Which ten recipients had the most active contract awards in FY2025?
+    outcome: answer
+    query: {metric: award_count, dimensions: [recipient], time_range: {start: "2024-10-01", end: "2025-09-30"}, order_by: {field: award_count, direction: desc}, limit: 10}
+    requires: [top_n]
+
+  - id: q43
+    question: Which five product and service codes had the most active awards?
+    outcome: answer
+    query: {metric: award_count, dimensions: [psc], order_by: {field: award_count, direction: desc}, limit: 5}
+    requires: [top_n]
+
+  - id: q44
+    question: Which contract award type had the highest average award value?
+    outcome: answer
+    query: {metric: avg_award_value, dimensions: [award_type], order_by: {field: avg_award_value, direction: desc}, limit: 1}
+    requires: [top_n]
+
+  - id: q45
+    question: Which fiscal quarter of FY2025 had the lowest competition rate?
+    outcome: answer
+    query: {metric: competition_rate, grain: fiscal_quarter, time_range: {start: "2024-10-01", end: "2025-09-30"}, order_by: {field: competition_rate, direction: asc}, limit: 1}
+    requires: [top_n]
+
+  # --- Expected refusals: out of catalog ----------------------------------------------------
+
+  - id: q46
+    question: How many contract transactions did EPA record in FY2025?
+    outcome: refuse
+    refusal_reason: out_of_catalog
+    catalog_candidate: transaction_count
+    note: No metric counts transactions; award_count counts awards. Golden value transactions.count would answer it.
+
+  - id: q47
+    question: How many awards ended FY2025 with negative net obligations?
+    outcome: refuse
+    refusal_reason: out_of_catalog
+    catalog_candidate: net_negative_award_count
+    note: The catalog cannot count awards by the sign of their net total. Golden value awards.net_negative.count would answer it.
+
+  - id: q48
+    question: What was the total of de-obligations in fiscal 2025?
+    outcome: refuse
+    refusal_reason: out_of_catalog
+    catalog_candidate: deobligations
+    note: obligations is net; no metric sums only the negative amounts. Golden value obligations.deobligations.sum would answer it.
+
+  - id: q49
+    question: Which single award had the lowest net obligation in FY2025?
+    outcome: refuse
+    refusal_reason: out_of_catalog
+    catalog_candidate: award dimension
+    note: Awards are not a catalog dimension. Golden value award.most_negative.net_obligation would answer it.
+
+  - id: q50
+    question: How many new contract awards did EPA make in FY2025?
+    outcome: refuse
+    refusal_reason: out_of_catalog
+    catalog_candidate: new_award_count
+    note: award_count counts awards active in the period, not new ones; ADR-0002 keeps "new in period" for a separate metric.
+
+  - id: q51
+    question: How much did EPA actually pay out on its contracts in FY2025?
+    outcome: refuse
+    refusal_reason: out_of_catalog
+    note: Outlays (payments) are not in the snapshot; obligations are commitments, not payments. Out of scope by design.
+
+  - id: q52
+    question: What share of EPA contract obligations went to small businesses?
+    outcome: refuse
+    refusal_reason: out_of_catalog
+    note: Business size is not among the snapshot's fields. Out of scope by design.
+
+  # --- Expected refusals: outside the slice --------------------------------------------------
+
+  - id: q53
+    question: What were EPA's net contract obligations in fiscal year 2024?
+    outcome: refuse
+    refusal_reason: outside_slice
+    note: The warehouse holds fiscal year 2025 only.
+
+  - id: q54
+    question: How much did NASA obligate on contracts in FY2025?
+    outcome: refuse
+    refusal_reason: outside_slice
+    note: The slice is one agency, the EPA.
+
+  - id: q55
+    question: What were EPA's grant obligations in fiscal 2025?
+    outcome: refuse
+    refusal_reason: outside_slice
+    note: The slice holds contract award types A to D only, no grants.
+
+  - id: q56
+    question: What were EPA's net contract obligations in calendar year 2025?
+    outcome: refuse
+    refusal_reason: outside_slice
+    note: October to December 2025 is outside the slice, so a calendar-year total would be silently partial.
+
+  # --- Expected refusals: ambiguous ------------------------------------------------------
+
+  - id: q57
+    question: Which was the best month?
+    outcome: refuse
+    refusal_reason: ambiguous
+    note: No measure is named; obligations, award count and the rates would each give a different month.
+
+  - id: q58
+    question: Show me the numbers for Virginia.
+    outcome: refuse
+    refusal_reason: ambiguous
+    note: No metric is named; the agent should ask which measure rather than pick one.
+
+  - id: q59
+    question: How has EPA contract spending changed recently?
+    outcome: refuse
+    refusal_reason: ambiguous
+    note: '"Recently" has no anchor, and the slice is one fiscal year; the agent should ask for the period.'
