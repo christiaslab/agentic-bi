@@ -18,7 +18,7 @@ import pytest
 from agentic_bi.agent.answer import QueryRun
 from agentic_bi.agent.figures import Evidence, Figure, build_evidence, find_figures, ungrounded
 
-MINUS = "−"  # the unicode minus sign: not a hyphen, not a dash
+MINUS = "\u2212"  # U+2212, the unicode minus sign: not a hyphen, not a dash
 FY = {"start": "2024-10-01", "end": "2025-09-30"}
 COVERAGE = (dt.date(2024, 10, 1), dt.date(2025, 9, 30))
 
