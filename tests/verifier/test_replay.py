@@ -232,3 +232,10 @@ def test_a_replay_directory_with_bad_json_is_refused(tmp_path) -> None:
 def test_a_replay_directory_must_exist(tmp_path) -> None:
     with pytest.raises(ReplayFileError):
         load_replays(tmp_path / "missing")
+
+
+def test_consistent_replays_carry_their_question_s_expected_query(replays, questions) -> None:
+    """A consistent replay must judge the expected query itself, not a near copy of it."""
+    for replay in replays.values():
+        if replay.replay_id.startswith("consistent") and "null-range" not in replay.replay_id:
+            assert replay.query == questions.by_id(replay.question_id).query, replay.replay_id

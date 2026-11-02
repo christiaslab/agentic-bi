@@ -3,12 +3,13 @@
 import io
 import json
 import sys
+import types
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from agentic_bi.verifier.__main__ import KEY_ENV, main
+from agentic_bi.verifier.__main__ import KEY_ENV, NOT_JUDGED, main
 
 QUESTION = "How much was obligated by each sub-agency?"
 VALID = {"metric": "obligations", "dimensions": ["sub_agency"], "grain": "total"}
@@ -46,7 +47,7 @@ def write_replay(directory: Path, response: Any, name: str = "one") -> None:
 
 def test_valid_query_without_a_key_is_deterministic_only() -> None:
     code, report, _ = run(VALID)
-    assert code == 0
+    assert code == NOT_JUDGED == 3
     assert report["deterministic"] == {"passed": True, "issues": []}
     assert report["verdict"] is None
     assert KEY_ENV in report["note"]
@@ -119,7 +120,7 @@ def test_key_without_the_client_library_exits_2_and_never_prints_the_key(
 def test_blank_key_counts_as_no_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(KEY_ENV, "   ")
     code, report, _ = run(VALID)
-    assert code == 0
+    assert code == NOT_JUDGED
     assert KEY_ENV in report["note"]
 
 
@@ -224,3 +225,97 @@ def test_missing_arguments_exit_through_argparse() -> None:
     with pytest.raises(SystemExit) as info:
         main(["check", "--question", QUESTION], out=io.StringIO())
     assert info.value.code == 2
+
+
+# --- A key and a working client (a fake anthropic module) ------------------------------
+
+
+class _Block:
+    def __init__(self, text: str) -> None:
+        self.type = "text"
+        self.text = text
+
+
+class _Response:
+    def __init__(self, text: str) -> None:
+        self.stop_reason = "end_turn"
+        self.content = [_Block(text)]
+
+
+def _fake_anthropic(monkeypatch: pytest.MonkeyPatch, answer: Any) -> list[dict[str, Any]]:
+    """Install a fake ``anthropic`` module whose client answers with ``answer``."""
+    calls: list[dict[str, Any]] = []
+
+    class Messages:
+        def create(self, **kwargs: Any) -> _Response:
+            calls.append(kwargs)
+            if isinstance(answer, BaseException):
+                raise answer
+            return _Response(answer if isinstance(answer, str) else json.dumps(answer))
+
+    class Anthropic:
+        def __init__(self) -> None:
+            self.messages = Messages()
+
+    module = types.ModuleType("anthropic")
+    module.Anthropic = Anthropic
+    monkeypatch.setitem(sys.modules, "anthropic", module)
+    return calls
+
+
+@pytest.mark.parametrize(
+    ("answer", "verdict", "code"),
+    [
+        ({"verdict": "consistent", "issues": [], "rationale": "It matches."}, "consistent", 0),
+        (
+            {
+                "verdict": "inconsistent",
+                "issues": [{"code": "wrong_dimension", "field": "dimensions", "explanation": "x"}],
+                "rationale": "It does not match.",
+            },
+            "inconsistent",
+            1,
+        ),
+    ],
+)
+def test_with_a_key_the_live_judge_prints_the_model_verdict(
+    monkeypatch: pytest.MonkeyPatch, answer: Any, verdict: str, code: int
+) -> None:
+    monkeypatch.setenv(KEY_ENV, FAKE_KEY)
+    calls = _fake_anthropic(monkeypatch, answer)
+    exit_code, report, raw = run(VALID, "--model", "claude-haiku-5-5")
+    assert exit_code == code
+    assert report["verdict"]["verdict"] == verdict
+    assert report["verdict"]["stage"] == "model"
+    assert report["verdict"]["judge"] == "claude-haiku-5-5"
+    assert report["verdict"]["prompt_version"] == "v1"
+    assert "error" not in report
+    assert len(calls) == 1 and calls[0]["model"] == "claude-haiku-5-5"
+    assert FAKE_KEY not in raw
+
+
+def test_with_a_key_a_malformed_model_answer_exits_2(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(KEY_ENV, FAKE_KEY)
+    _fake_anthropic(monkeypatch, "Looks fine.")
+    code, report, raw = run(VALID)
+    assert code == 2
+    assert "MalformedVerdictError" in report["error"]
+    assert FAKE_KEY not in raw
+
+
+def test_with_a_key_a_failed_model_call_exits_2_not_1(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(KEY_ENV, FAKE_KEY)
+    _fake_anthropic(monkeypatch, ConnectionError("network down, key " + FAKE_KEY))
+    code, report, raw = run(VALID)
+    assert code == 2
+    assert "JudgeError" in report["error"] and "ConnectionError" in report["error"]
+    assert FAKE_KEY not in raw
+
+
+def test_with_a_key_a_failing_check_never_calls_the_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(KEY_ENV, FAKE_KEY)
+    calls = _fake_anthropic(monkeypatch, {"verdict": "consistent", "issues": [], "rationale": "x"})
+    code, report, _ = run({"metric": "revenue"})
+    assert code == 1
+    assert report["verdict"]["stage"] == "deterministic"
+    assert calls == []

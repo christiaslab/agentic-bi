@@ -29,7 +29,7 @@ S5b scores the analyst agent on intent accuracy and refusal behaviour (ADR-0002,
    | --- | --- | --- |
    | `invalid_query` | the query fails the structured-query schema; the compiler's refusal code is kept beside it | `inconsistent` |
    | `outside_catalog` | a metric, dimension, grain, operator or filter value is outside the catalog or not allowed for the metric | `inconsistent` |
-   | `time_range_outside_slice` | the time range reaches dates the warehouse does not hold, wholly or in part | `refuse_expected` when it is the only issue |
+   | `time_range_outside_slice` | the time range reaches dates the warehouse does not hold, wholly or in part | `refuse_expected` when it is the only issue and the range lies wholly outside the slice; otherwise `inconsistent` |
 
    Model codes, the only ones the judge may use:
 
@@ -46,11 +46,13 @@ S5b scores the analyst agent on intent accuracy and refusal behaviour (ADR-0002,
 
    Rules between verdict and codes: `consistent` has no issue; `inconsistent` has at least one and never `should_refuse`; `refuse_expected` has `should_refuse` (model) or `time_range_outside_slice` (deterministic).
 
+   A range that only partly leaves the slice is `inconsistent`, not `refuse_expected`: from the query alone the checks cannot tell an out-of-slice question ("calendar year 2025") from a date error on an answerable one ("fiscal year 2025" sent as October 2024 to October 2025), so they do not claim the question should be refused.
+
 6. **The model's answer is parsed against a JSON schema.** `VERDICT_JSON_SCHEMA` (`src/agentic_bi/verifier/verdict.py`) lists the fields, the verdict values and the model codes. The answer must be one JSON object, optionally inside one code fence, with no repeated key. Anything else, including a valid object that breaks the rules of point 5, is a `MalformedVerdictError`. A malformed verdict is an error, never a pass. The schema validator is a small one in the module, written for the keywords the schema uses, so no dependency is added; it refuses a schema keyword it does not know.
 
 7. **The prompt is a versioned file.** `src/agentic_bi/verifier/prompts/verifier-v1.md` opens with `prompt_version: v1`, and `PROMPT_VERSION` must match. A change of meaning is a new file and a new version. Every verdict names the version it answered, and a replay recorded for one version is never served for another. The question, the query and the excerpt reach the model as JSON between tags, with `<`, `>` and `&` escaped, and the prompt says the blocks are data (ADR-0002 point 9 applied to the verifier).
 
-8. **The model is called only through a `Judge`.** A judge turns a request into raw text; the verifier alone parses and decides. `ReplayJudge` serves recorded verdicts (tests, no key). `AnthropicJudge` makes one Messages API call with the versioned system prompt and low effort; it receives its client by injection, or imports the `anthropic` library lazily when a key is present. No dependency is added here: the library arrives with S4 (ADR-0005) and S5b wires the live judge into the eval run with the pinned model and the spend cap of the plan.
+8. **The model is called only through a `Judge`.** A judge turns a request into raw text; the verifier alone parses and decides. `ReplayJudge` serves recorded verdicts (tests, no key). `AnthropicJudge` makes one Messages API call with the versioned system prompt and low effort; any error of that call (network, authentication, rate limit) is a `JudgeError`, a failed run, never a verdict. It receives its client by injection, or imports the `anthropic` library lazily when a key is present. No dependency is added here: the library arrives with S4 (ADR-0005) and S5b wires the live judge into the eval run with the pinned model and the spend cap of the plan.
 
 9. **Default model: `claude-haiku-5-5`.** The task is a short classification against a definition the prompt carries in full, which is what the smallest current model is for; ADR-0002 asks for a cheaper model than the agent's. The id is a setting (`AGENTIC_BI_VERIFIER_MODEL` or `--model`), not a constant in the prompt. S5b measures it against the question set; if it misjudges, the next step is a larger model, not a looser parser.
 
@@ -63,4 +65,5 @@ S5b scores the analyst agent on intent accuracy and refusal behaviour (ADR-0002,
 - A query that fails the schema, leaves the catalog or leaves the slice is caught for free, before any spend.
 - The live verdict quality is unproven until S5b: the replays are written by hand and prove the plumbing, not the model. S5b runs the judge on the expected queries (they should come back `consistent`) and on deliberately wrong ones (each should come back with its code) before trusting it on the agent's queries.
 - Two vocabularies of refusal exist on purpose: the compiler's (a query outside the catalog) and the verifier's `should_refuse` (a question outside the catalog that a valid query tries to answer anyway). Only the second needs a model.
+- The prompt and the question set were written in the same session. The prompt states its refusal rule by class (a measure, breakdown or period the catalog does not define; data outside the slice; ambiguity no definition settles) and avoids the set's own wording, but the verifier's agreement on this set may still flatter it. S5b should also try it on refusal questions written after this prompt.
 - A question set written by the same hands as the catalog can share its blind spots. Paraphrase pairs and plain-language wording reduce that; live questions from the owner (S4) should be added to it over time, with an id each and never renumbered.

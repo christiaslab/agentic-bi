@@ -7,8 +7,12 @@ Three checks run before any judge sees a query, in this order:
 3. **Slice.** The time range must lie inside the slice the warehouse holds (ADR-0001).
 
 A failed check is a verdict on its own: ``inconsistent`` for a schema or catalog failure,
-``refuse_expected`` when only the time range leaves the slice. A query that passes all three
-goes to the judge, which decides intent.
+``refuse_expected`` when the only failure is a time range wholly outside the slice (the question
+is about data the warehouse does not hold), and ``inconsistent`` when a time range only partly
+leaves it. A partial overlap cannot tell an out-of-slice question ("calendar 2025") from a
+date error on an answerable one ("fiscal 2025" sent as October 2024 to October 2025), so it does
+not claim the question should be refused. A query that passes all three goes to the judge,
+which decides intent.
 
 Top-N fields. ADR-0002 is being amended in S4 to add ``order_by`` and ``limit``. Until that
 lands, a query carrying them fails ``parse_query`` on exactly that field; the checks then read
@@ -57,6 +61,8 @@ class CheckResult:
     issues: tuple[Issue, ...]
     query: StructuredQuery | None
     top_n: TopN | None = None
+    # "wholly" or "partly" when the time range leaves the slice, else None.
+    outside_slice: str | None = None
 
     @property
     def passed(self) -> bool:
@@ -67,9 +73,15 @@ class CheckResult:
         if self.passed:
             return None
         codes = tuple(issue.code for issue in self.issues)
-        if set(codes) == {"time_range_outside_slice"}:
+        if set(codes) == {"time_range_outside_slice"} and self.outside_slice == "wholly":
             outcome = "refuse_expected"
             rationale = "The question asks about dates the warehouse does not hold."
+        elif set(codes) == {"time_range_outside_slice"}:
+            outcome = "inconsistent"
+            rationale = (
+                "The time range reaches beyond the slice, so the answer would be silently "
+                "partial; either the dates are wrong or the question should be refused."
+            )
         else:
             outcome = "inconsistent"
             rationale = (
@@ -133,10 +145,10 @@ def run_checks(
             )
         )
 
-    slice_issue = _slice_issue(query, slice_range)
+    slice_issue, outside = _slice_issue(query, slice_range)
     if slice_issue is not None:
         issues.append(slice_issue)
-    return CheckResult(tuple(issues), query, top_n)
+    return CheckResult(tuple(issues), query, top_n, outside)
 
 
 def _invalid(field: str, message: str, refusal_code: str) -> Issue:
@@ -182,15 +194,15 @@ def _provisional_top_n(data: Mapping[str, Any]) -> tuple[TopN, Issue | None]:
     return TopN(field, direction, limit), None
 
 
-def _slice_issue(query: StructuredQuery, slice_range: TimeRange) -> Issue | None:
+def _slice_issue(query: StructuredQuery, slice_range: TimeRange) -> tuple[Issue | None, str | None]:
     time_range = query.time_range
     if time_range is None:
-        return None
+        return None, None
     if time_range.start >= slice_range.start and time_range.end <= slice_range.end:
-        return None
+        return None, None
     disjoint = time_range.end < slice_range.start or time_range.start > slice_range.end
     extent = "lies wholly outside" if disjoint else "reaches beyond"
-    return Issue(
+    issue = Issue(
         code="time_range_outside_slice",
         field="time_range",
         explanation=(
@@ -199,3 +211,4 @@ def _slice_issue(query: StructuredQuery, slice_range: TimeRange) -> Issue | None
             f"{slice_range.end.isoformat()}; an answer would be empty or silently partial"
         ),
     )
+    return issue, "wholly" if disjoint else "partly"

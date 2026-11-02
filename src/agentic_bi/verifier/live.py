@@ -15,7 +15,8 @@ from typing import Any
 
 from .judge import JudgeError, JudgeRequest, configured_model
 
-MAX_TOKENS = 4096
+# Thinking counts toward this budget on models that think by default, so it is generous.
+MAX_TOKENS = 16000
 EFFORT = "low"
 
 
@@ -35,13 +36,18 @@ class AnthropicJudge:
         return self.model
 
     def judge(self, request: JudgeRequest) -> str:
-        response = self._client.messages.create(
-            model=self.model,
-            max_tokens=MAX_TOKENS,
-            system=request.system,
-            messages=[{"role": "user", "content": request.user}],
-            output_config={"effort": EFFORT},
-        )
+        try:
+            response = self._client.messages.create(
+                model=self.model,
+                max_tokens=MAX_TOKENS,
+                system=request.system,
+                messages=[{"role": "user", "content": request.user}],
+                output_config={"effort": EFFORT},
+            )
+        except Exception as exc:
+            # A network, auth, rate or API error is a failed run, never a verdict. Only the
+            # error's type is kept: its text could echo request details.
+            raise JudgeError(f"the model call failed: {type(exc).__name__}") from exc
         stop = getattr(response, "stop_reason", None)
         if stop == "refusal":
             raise JudgeError("the model declined to answer")

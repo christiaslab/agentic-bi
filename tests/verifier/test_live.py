@@ -202,3 +202,14 @@ def test_verify_without_a_judge_leaves_a_passing_query_unjudged() -> None:
     assert verification.checks.passed
     assert verification.verdict is None
     assert not verification.judged
+
+
+def test_a_failing_client_call_raises_judge_error_without_its_text() -> None:
+    class Failing:
+        def create(self, **kwargs: Any) -> Any:
+            raise TimeoutError("request echo: SYSTEM PROMPT")
+
+    client = SimpleNamespace(messages=Failing())
+    with pytest.raises(JudgeError, match="TimeoutError") as info:
+        AnthropicJudge(client=client).judge(request())
+    assert "SYSTEM PROMPT" not in str(info.value)

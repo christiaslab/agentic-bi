@@ -206,7 +206,8 @@ def test_time_range_wholly_after_the_slice_is_refuse_expected() -> None:
     ("start", "end"),
     [("2025-01-01", "2025-10-31"), ("2024-09-30", "2025-09-30"), ("2024-10-01", "2025-10-01")],
 )
-def test_time_range_reaching_past_the_slice_is_refuse_expected(start: str, end: str) -> None:
+def test_time_range_partly_outside_the_slice_is_inconsistent(start: str, end: str) -> None:
+    """A partial overlap may be a date error on an answerable question, so it claims no refusal."""
     query = {"metric": "obligations", "time_range": {"start": start, "end": end}}
     result = run_checks(query)
     issue = only_issue(result)
@@ -214,7 +215,8 @@ def test_time_range_reaching_past_the_slice_is_refuse_expected(start: str, end: 
     assert "reaches beyond" in issue.explanation
     verdict = result.verdict()
     assert verdict is not None
-    assert verdict.verdict == "refuse_expected"
+    assert verdict.verdict == "inconsistent"
+    assert result.outside_slice == "partly"
     assert verdict.stage == "deterministic"
 
 

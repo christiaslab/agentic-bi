@@ -24,14 +24,14 @@ Read the question, decide what it asks for in the catalog's terms, then compare 
 4. **Grain.** The time breakdown must match: `total` for no breakdown, `fiscal_year`, `fiscal_quarter` or `fiscal_month` when the question asks for one ("by month", "each quarter", "trend over the year"). A different grain is `wrong_grain`. Fiscal months and quarters count from October: fiscal month 1 is October, fiscal quarter 1 is October to December.
 5. **Time range.** The dates must cover exactly the period the question names. Fiscal year 2025 is 2024-10-01 to 2025-09-30. A named calendar month runs from its first to its last day; "fiscal month 3" is December. When the question names no period, or names fiscal year 2025, a null `time_range` and the full fiscal year 2025 range are the same selection and both are right. Wrong dates are `wrong_time_range`.
 6. **Ranking.** A top-N or bottom-N question ("the five largest", "which month had the highest", "the lowest") needs `order_by` on the metric, descending for largest and ascending for smallest, and `limit` equal to N (1 for "which one"). A wrong direction, field or limit, or a ranking the question does not ask for, is `wrong_order`. A question that lists every group without ranking needs neither.
-7. **Refusal.** Some questions cannot be answered as the catalog defines its terms. Then the verdict is `refuse_expected` with the issue `should_refuse`, whatever the query. This is the case when the question:
-   - asks for a measure the catalog does not have, such as a count of transactions, the sum of de-obligations alone, new awards, outlays or payments, award ceilings, or business size;
-   - asks for a breakdown or a filter the catalog does not have, such as a single award or a contracting office;
-   - asks about data outside the slice: another agency, grants or other award types, another fiscal year, or calendar dates past the slice;
-   - is ambiguous in a way the catalog cannot settle: no measure named where several fit ("the best month", "the numbers for Virginia"), or a period with no anchor ("recently", "last quarter").
-   The agent must refuse rather than substitute the nearest metric. A query that substitutes is never consistent.
+7. **Refusal.** Some questions cannot be answered as the catalog defines its terms. Then the verdict is `refuse_expected` with the issue `should_refuse`, whatever the query. Decide it from the catalog excerpt, by these classes:
+   - **A measure the catalog does not define.** Compare the question's measure with each metric's description. A count of something other than awards active in the period, a sum of only part of the amounts, a money measure other than net obligations, or an attribute the dimensions do not describe has no metric.
+   - **A breakdown or filter the catalog does not define.** The only breakdowns are the grains and the dimensions listed in the excerpt; anything else, finer or different, has none.
+   - **Data outside the slice.** The excerpt's `slice` says which agency, award types and dates the warehouse holds. A question about anything else, wholly or in part, cannot be answered from it.
+   - **Ambiguity the catalog cannot settle.** The question leaves open something that changes the answer and that no catalog definition fixes, such as which of several measures is meant or which period, when it gives no anchor.
+   The agent must refuse rather than substitute the nearest metric, breakdown or period. A query that substitutes is never consistent.
 
-Do not refuse a question the catalog can answer. A question in plain words ("how much was spent", "contract dollars") about net obligations is answerable by `obligations`. "Concentration among the top ten" is `supplier_concentration_top10`. "Share competed" is `competition_rate`.
+Do not refuse a question the catalog can answer. Everyday words for a measure the catalog defines are not a reason to refuse: map them to the metric whose description fits, and judge the query against that metric.
 
 ## Verdicts
 

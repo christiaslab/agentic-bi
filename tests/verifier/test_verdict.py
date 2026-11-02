@@ -258,3 +258,23 @@ def test_model_and_deterministic_codes_are_disjoint() -> None:
         "outside_catalog",
         "time_range_outside_slice",
     }
+
+
+def test_deeply_nested_text_is_malformed_not_a_crash() -> None:
+    with pytest.raises(MalformedVerdictError):
+        parse_verdict("[" * 100000)
+
+
+@pytest.mark.parametrize("field", ["rationale", "explanation"])
+def test_blank_rationale_or_explanation_is_malformed(field: str) -> None:
+    data = {
+        "verdict": "inconsistent",
+        "issues": [{"code": "wrong_metric", "field": "metric", "explanation": "It differs."}],
+        "rationale": "It differs.",
+    }
+    if field == "rationale":
+        data["rationale"] = "   "
+    else:
+        data["issues"][0]["explanation"] = " \n "
+    with pytest.raises(MalformedVerdictError, match="blank"):
+        parse_verdict(json.dumps(data))

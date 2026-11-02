@@ -104,6 +104,7 @@ questions:
     question: Compare FY2025 obligations on competed and not-competed transactions.
     outcome: answer
     query: {metric: obligations, dimensions: [competed], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    note: The answer has three rows, true, false and an empty one for transactions with no extent-competed code; competition_rate counts that last group as not competed.
 
   - id: q15
     question: How much did recipient DBD6KDKXWN65 receive in net contract obligations?

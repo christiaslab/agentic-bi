@@ -195,7 +195,14 @@ def parse_verdict(
         data = json.loads(body, object_pairs_hook=_no_duplicate_keys, parse_constant=_no_constant)
     except (json.JSONDecodeError, ValueError) as exc:
         raise MalformedVerdictError("response", f"is not one JSON object: {exc}") from exc
+    except RecursionError as exc:
+        raise MalformedVerdictError("response", "is nested too deeply") from exc
     validate(data, VERDICT_JSON_SCHEMA)
+    if not data["rationale"].strip():
+        raise MalformedVerdictError("verdict.rationale", "is blank")
+    for i, item in enumerate(data["issues"]):
+        if not item["explanation"].strip():
+            raise MalformedVerdictError(f"verdict.issues[{i}].explanation", "is blank")
     issues = tuple(
         Issue(code=item["code"], field=item["field"], explanation=item["explanation"])
         for item in data["issues"]

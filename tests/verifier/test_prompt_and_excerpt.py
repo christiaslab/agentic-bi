@@ -66,15 +66,7 @@ def test_prompt_and_excerpt_hold_no_em_or_en_dash() -> None:
         assert EN_DASH not in text
 
 
-@pytest.mark.parametrize("pattern", ["docs/verifier.md", "docs/decisions/0006-*.md"])
-def test_verifier_docs_hold_no_em_or_en_dash(pattern: str) -> None:
-    paths = sorted(REPO_ROOT.glob(pattern))
-    if not paths:
-        pytest.skip(f"{pattern} is not written yet")
-    for path in paths:
-        text = path.read_text(encoding="utf-8")
-        assert EM_DASH not in text, path.name
-        assert EN_DASH not in text, path.name
+# The verifier's documents are checked for dashes in test_verifier_docs.py, by exact path.
 
 
 def test_excerpt_names_every_metric_dimension_grain_and_operator() -> None:

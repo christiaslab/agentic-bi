@@ -7,9 +7,10 @@ Prints one JSON object: the deterministic checks and the verdict. With no
 verdict, and the output says intent was not judged. With a key, the live judge gives the
 model verdict. ``--replay <dir>`` uses recorded verdicts instead, with no key and no network.
 
-Exit status: 0 for a consistent verdict, or checks passed with intent not judged; 1 for an
-inconsistent or refuse_expected verdict; 2 when the run itself failed (bad arguments, no
-live judge available, a missing replay, a malformed verdict).
+Exit status: 0 for a consistent verdict; 1 for an inconsistent or refuse_expected verdict; 2
+when the run itself failed (bad arguments, no live judge available, a failed model call, a
+missing replay, a malformed verdict); 3 when the checks passed and intent was not judged, so
+a script never reads an unjudged query as verified.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from .verify import Verification, VerifierInputError, check_question, verify
 
 KEY_ENV = "ANTHROPIC_API_KEY"
 _NOT_JSON = object()
+NOT_JUDGED = 3
 
 
 def main(argv: list[str] | None = None, out: TextIO | None = None) -> int:
@@ -98,7 +100,9 @@ def main(argv: list[str] | None = None, out: TextIO | None = None) -> int:
     if "error" in report:
         return 2
     verdict = verification.verdict
-    if verdict is None or verdict.verdict == "consistent":
+    if verdict is None:
+        return NOT_JUDGED
+    if verdict.verdict == "consistent":
         return 0
     return 1
 
