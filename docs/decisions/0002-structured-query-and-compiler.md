@@ -38,7 +38,7 @@ Golden cases include awards with net-negative obligations.
 
 ## Amendment, 2026-11-02: ordering and a row limit
 
-Status: Accepted, 2026-11-02 (owner ruling: top-N questions through `order_by` and `limit`). Built in S4.
+Status: Proposed, 2026-11-02, in S4. The owner ruled the direction the same day (top-N questions through `order_by` and `limit`); the details below are proposed for the owner's review.
 
 Point 1 gains two optional fields, so that a top-N question ("the five largest recipients") is asked inside the structured query instead of by reading a full grouped list:
 

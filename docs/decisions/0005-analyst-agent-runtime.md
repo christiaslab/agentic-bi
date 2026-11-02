@@ -1,6 +1,6 @@
 # ADR-0005: Analyst agent runtime, the Messages API with the project's own tool runner
 
-Status: Accepted, 2026-11-02, for S4 ([tasks/s4-analyst-agent.json](../../tasks/s4-analyst-agent.json)); the owner rules on it when reviewing the pull request.
+Status: Proposed, 2026-11-02, in S4 ([tasks/s4-analyst-agent.json](../../tasks/s4-analyst-agent.json)); the owner accepts or amends it when reviewing the pull request.
 
 ## Context
 
