@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Iterable
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -215,11 +215,6 @@ def test_figures_are_returned_in_order_of_appearance() -> None:
     assert [figure.text for figure in figures] == ["$141.7M", "136.9M", "6,016"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="a decimal glued to letters is split: '2.5x' yields the figure '2'",
-)
 @pytest.mark.parametrize(
     ("text", "whole_part"),
     [
@@ -596,6 +591,71 @@ def test_a_year_the_question_wrote_is_grounded_even_when_no_query_holds_it() -> 
     assert missing("There is no data for fiscal year 2022.", question=question) == ["2022"]
 
 
+# --- names the schema tool returned -----------------------------------------------------------
+
+# Two labels of the warehouse that hold a number. A name comes from the schema tool, never from
+# the rows of a run, so it is passed to the evidence apart from the runs.
+NAME = "CHENEGA SENTINEL 360, LLC"
+OTHER_NAME = "CALLYO 2009 CORP"
+
+
+@pytest.mark.parametrize(
+    "written",
+    [
+        pytest.param(NAME, id="as-returned"),
+        pytest.param(NAME.title(), id="title-case"),
+        pytest.param(NAME.lower(), id="lower-case"),
+    ],
+)
+def test_a_name_the_schema_tool_returned_is_text_and_its_number_is_not_checked(
+    written: str,
+) -> None:
+    sentence = f"{written} led, with $141.7 million."
+    assert ungrounded(sentence, build_evidence([TOP3], names=[NAME])) == []
+    # without the name from the schema tool, the number in it is a figure like any other
+    assert ungrounded(sentence, build_evidence([TOP3])) == ["360"]
+
+
+def test_a_number_written_outside_the_name_is_still_checked() -> None:
+    evidence = build_evidence([TOP3], names=[NAME])
+    assert ungrounded(f"{NAME} had 360 awards and $141.7 million.", evidence) == ["360"]
+
+
+def test_a_name_that_holds_a_number_cannot_ground_that_number_elsewhere() -> None:
+    evidence = build_evidence([TOP3], names=[OTHER_NAME])
+    assert ungrounded(f"{OTHER_NAME} was founded in 2009.", evidence) == ["2009"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("SENTINEL 360 led.", id="part-of-the-name"),
+        pytest.param("CHENEGA SENTINEL 360, LLCS led.", id="letters-glued-on-after"),
+        pytest.param("XCHENEGA SENTINEL 360, LLC led.", id="letters-glued-on-before"),
+    ],
+)
+def test_a_name_is_masked_only_when_written_out_in_full(text: str) -> None:
+    assert ungrounded(text, build_evidence([TOP3], names=[NAME])) == ["360"]
+
+
+@pytest.mark.parametrize(
+    ("label", "text", "figure"),
+    [
+        pytest.param("562910", "It was 562910.", "562910", id="digits-only"),
+        pytest.param("A 7", "It was A 7.", "7", id="under-four-characters"),
+    ],
+)
+def test_a_label_that_is_not_a_name_hides_no_figure(label: str, text: str, figure: str) -> None:
+    assert ungrounded(text, build_evidence([TOP3], names=[label])) == [figure]
+
+
+def test_a_name_is_matched_literally_and_never_as_a_pattern() -> None:
+    name = "A.*Z 360"
+    evidence = build_evidence([TOP3], names=[name])
+    assert ungrounded(f"{name} led.", evidence) == []
+    assert ungrounded("ABCZ 360 led.", evidence) == ["360"]
+
+
 # --- cells that are not numbers ---------------------------------------------------------------
 
 
@@ -616,11 +676,6 @@ def test_a_metric_cell_that_is_not_a_number_is_not_a_measured_value(cell: object
     assert ungrounded("It was $12 or 12.", evidence) == ["$12", "12"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=InvalidOperation,
-    reason="a Decimal NaN cell is kept as a measured value and makes ungrounded() raise",
-)
 def test_a_decimal_nan_cell_does_not_stop_the_check() -> None:
     # Not reachable from a DuckDB DECIMAL column; a float NaN is dropped, and so should this be.
     assert missing("It was $12.", make_run([(Decimal("NaN"),)])) == ["$12"]
@@ -638,12 +693,14 @@ def test_evidence_without_runs_holds_only_the_coverage_dates() -> None:
     evidence = build_evidence([], coverage=COVERAGE)
     assert evidence.measured == ()
     assert evidence.stated == frozenset()
+    assert evidence.names == ()
     assert evidence.dates == frozenset({"2024-10-01", "2025-09-30"})
     assert evidence.frame == frozenset(Decimal(n) for n in (2024, 10, 1, 2025, 9, 30))
 
 
 def test_evidence_of_nothing_is_empty() -> None:
-    assert build_evidence([]) == Evidence((), frozenset(), frozenset(), frozenset())
+    empty = Evidence(measured=(), frame=frozenset(), stated=frozenset(), dates=frozenset())
+    assert build_evidence([]) == empty
 
 
 def test_evidence_holds_the_values_the_frame_the_stated_figures_and_the_dates() -> None:

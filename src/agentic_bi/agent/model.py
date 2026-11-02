@@ -214,12 +214,15 @@ class ReplayModel:
     def _check_conversation(self, index: int, messages: list[dict[str, Any]]) -> None:
         if not messages or messages[0]["role"] != "user":
             raise ReplayError("the conversation must open with the user's question")
+        if len(messages) == 1:
+            return  # a question opens a conversation: the first, or the next of a session
         if index == 0:
-            if len(messages) != 1:
-                raise ReplayError("the first request must hold the question only")
-            return
+            raise ReplayError("the first request must hold the question only")
         previous = self._turns[index - 1]
-        if messages[-2] != {"role": "assistant", "content": content_blocks(previous["content"])}:
+        if len(messages) < 3 or messages[-2] != {
+            "role": "assistant",
+            "content": content_blocks(previous["content"]),
+        }:
             raise ReplayError(f"turn {index} did not go back into the history unchanged")
         last = messages[-1]
         if last["role"] != "user":

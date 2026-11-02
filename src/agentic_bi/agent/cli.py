@@ -58,7 +58,11 @@ def main(
     if model_factory is None and not environ.get(KEY_ENV, "").strip():
         print(NO_KEY, file=stderr)
         return 2
-    settings = AgentSettings.from_env(environ, model=args.model, effort=args.effort)
+    try:
+        settings = AgentSettings.from_env(environ, model=args.model, effort=args.effort)
+    except ValueError as exc:
+        print(f"bad setting: {exc}", file=stderr)
+        return 2
 
     if args.command == "ask":
         questions = [args.question.strip()]

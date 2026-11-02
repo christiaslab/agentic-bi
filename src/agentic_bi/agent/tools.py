@@ -92,7 +92,7 @@ def catalog(cat: Catalog | None = None) -> dict[str, Any]:
     """Every metric, dimension, grain and operator with its description, and the coverage."""
     cat = cat if cat is not None else default_catalog()
     return {
-        "coverage": dict(COVERAGE),
+        "coverage": copy.deepcopy(COVERAGE),
         "metrics": [
             {
                 "name": m.name,
@@ -232,13 +232,16 @@ def schema(
     if found.values is not None or found.type == "boolean":
         values = list(found.values) if found.values is not None else [True, False]
         rows = [(v, None) for v in values if _keeps(v, None, needle, wanted)]
-        matching, kept = len(rows), rows[:limit]
+        matching = len(rows)
     else:
         check_query_connection(connection)
         sql, params = _values_sql(found, needle, wanted)
-        _, result = run_guarded(connection, sql, [*params, limit], limit, timeout_seconds)
+        # with codes, fetch every match (at most one per code) so not_found is exact
+        fetch = limit if wanted is None else max(limit, len(wanted))
+        _, result = run_guarded(connection, sql, [*params, fetch], fetch, timeout_seconds)
         matching = result[0][2] if result else 0
-        kept = [(value, label) for value, label, _ in result]
+        rows = [(value, label) for value, label, _ in result]
+    kept = rows[:limit]
 
     labelled = found.name in LABELS
     payload: dict[str, Any] = {
@@ -256,7 +259,7 @@ def schema(
         ],
     }
     if wanted is not None:
-        seen = {value for value, _ in kept}
+        seen = {value for value, _ in rows}
         payload["not_found"] = [code for code in wanted if code not in seen]
     return payload
 
@@ -459,6 +462,7 @@ class ToolBox:
         try:
             if tool == "unknown":
                 raise ToolInputError("name", f"there is no such tool; use {', '.join(TOOL_NAMES)}")
+            _valid_text(arguments)
             run = None
             if tool == "run_query":
                 run = run_query(
@@ -530,6 +534,27 @@ class ToolBox:
             payload,
             refusal=error if refusal else None,
         )
+
+
+def _valid_text(value: Any) -> None:
+    """Refuse text that is not valid Unicode (an unpaired surrogate) anywhere in the input.
+
+    Such text cannot be bound as a DuckDB parameter, nor written as UTF-8; JSON from the API
+    can carry it as an escape.
+    """
+    texts = [value] if isinstance(value, str) else []
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            texts.append(str(key))
+            _valid_text(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _valid_text(item)
+    for text in texts:
+        try:
+            text.encode("utf-8")
+        except UnicodeEncodeError:
+            raise ToolInputError("input", "holds text that is not valid Unicode") from None
 
 
 def _object(arguments: Any) -> Mapping[str, Any]:

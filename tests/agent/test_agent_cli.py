@@ -705,11 +705,6 @@ def test_the_model_and_effort_come_from_the_flags_then_the_environment_then_the_
     assert settings["model"] == model and settings["effort"] == effort
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=ValueError,
-    reason="an empty --model escapes main() as a ValueError instead of exit code 2 and a message",
-)
 @pytest.mark.parametrize("value", ["", "   "], ids=["empty", "spaces"])
 def test_an_empty_model_flag_is_a_bad_argument_with_exit_code_two(
     synthetic_db: Path, value: str
@@ -1019,11 +1014,6 @@ def test_a_fatal_error_stops_the_session_and_the_index_says_why(
     assert f"Stopped early: {error}\n" in (out / "session.md").read_text(encoding="utf-8")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=IndexError,
-    reason="ReplayModel counts turns across questions, so a second question raises IndexError",
-)
 def test_a_session_can_run_on_one_replay_model_whose_turns_cover_both_questions(
     tmp_path: Path, synthetic_db: Path
 ) -> None:

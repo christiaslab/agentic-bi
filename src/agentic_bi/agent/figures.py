@@ -42,7 +42,7 @@ _NUMBER = re.compile(
     (?P<sign>[-−])?
     \$?
     (?P<sign2>[-−])?
-    (?P<digits>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)
+    (?P<digits>(?>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?))  # atomic: never "2" of "2.5x"
     (?P<suffix>
         \s?(?:%|percent\b|per\ cent\b)
       | \s(?:thousand|million|billion|trillion)\b
@@ -173,7 +173,7 @@ def _number(value: object) -> Decimal | None:
     if isinstance(value, bool) or value is None:
         return None
     if isinstance(value, Decimal):
-        return value
+        return value if value.is_finite() else None
     if isinstance(value, int):
         return Decimal(value)
     if isinstance(value, float):

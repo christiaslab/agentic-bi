@@ -43,8 +43,13 @@ def json_safe(value: Any) -> Any:
 
 
 def dumps(payload: Any) -> str:
-    """Compact JSON text with no ``<``, ``>`` or ``&`` character, decoding to ``payload``."""
+    """Compact JSON text with no ``<``, ``>`` or ``&`` character, decoding to ``payload``.
+
+    An unpaired surrogate is written as its ``\\u`` escape, so the text is always valid UTF-8
+    and still decodes to the same value.
+    """
     text = json.dumps(json_safe(payload), ensure_ascii=False, allow_nan=False)
+    text = text.encode("utf-8", "backslashreplace").decode("utf-8")
     return text.translate(_ESCAPES)
 
 
