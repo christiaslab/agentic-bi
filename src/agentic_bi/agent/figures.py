@@ -61,7 +61,7 @@ _WRITTEN_DATE = re.compile(
     rf"|\b(?P<day2>{_DAY})\s+(?P<month2>{_MONTH})(?:,?\s+(?P<year2>\d{{4}}))?\b",
     re.IGNORECASE,
 )
-# fiscal year 2024-25: both years must frame a query
+# fiscal year 2024-25 (both years must frame a query), or a year and a month (2024-10)
 _YEAR_RANGE = re.compile(r"(?<![\w.\-/])(?P<first>\d{4})[-/](?P<second>\d{2})(?![\w\-/])")
 _NUMBER = re.compile(
     r"""
@@ -100,7 +100,12 @@ _SCALES = {
 # "mm" is left out on purpose: in product names it means millimetres (GUNS, THROUGH 30MM).
 _MULTIPLIERS = ("x", "\u00d7")
 _NUMERIC_TEXT = re.compile(r"-?\d+(?:\.\d+)?")
-_YEAR = re.compile(r"(?:19|20)\d{2}")
+# a year of the question: 19xx or 20xx right after a word that names a time ("fiscal year 2023",
+# "FY2023", "in 2023"), so that "Were 2000 awards active?" grounds nothing
+_QUESTION_YEAR = re.compile(
+    r"(?i:\b(?:fy|year|in|since|for|during|until|through|before|after|of)\s*)"
+    r"(?P<year>(?:19|20)\d{2})\b"
+)
 # A name worth masking: at least four characters with a letter and a digit. Pure digits stay
 # figures or frame numbers; a name without a digit holds no number to mask.
 _NAME = re.compile(r"(?=.*[A-Za-z])(?=.*\d).{4,}", re.DOTALL)
@@ -167,11 +172,7 @@ def build_evidence(
             days.update(dt.date.fromisoformat(time_range[key]) for key in ("start", "end"))
     frame.update(Decimal(day.year) for day in days)
     question_dates, masked = _dates(question)
-    stated = {
-        figure.value
-        for figure in _figures(masked)
-        if figure.plain_integer and _YEAR.fullmatch(figure.text)
-    }
+    stated = {Decimal(match.group("year")) for match in _QUESTION_YEAR.finditer(masked)}
     allowed = {day.isoformat() for day in days}
     allowed |= {when.isoformat() for _, when in question_dates if isinstance(when, dt.date)}
     return Evidence(
@@ -195,9 +196,11 @@ def ungrounded(text: str, evidence: Evidence) -> list[str]:
     ]
     years = evidence.frame | evidence.stated
     for match in _YEAR_RANGE.finditer(masked):
-        first = int(match.group("first"))
-        second = first // 100 * 100 + int(match.group("second"))
-        if not {Decimal(first), Decimal(second)} <= years or second != first + 1:
+        first, tail = int(match.group("first")), int(match.group("second"))
+        second = first // 100 * 100 + tail
+        span_of_years = second == first + 1 and {Decimal(first), Decimal(second)} <= years
+        year_and_month = 1 <= tail <= 12 and Decimal(first) in years  # 2024-10
+        if not (span_of_years or year_and_month):
             missing.append(match.group(0))
     masked = _YEAR_RANGE.sub(lambda match: " " * len(match.group(0)), masked)
     spans = _name_spans(masked, evidence.names)
@@ -226,8 +229,8 @@ def _figures(text: str) -> list[Figure]:
                 scale = _SCALES[key]
             elif key in _MULTIPLIERS:
                 multiplier = True
-            elif not currency and "." not in match.group("digits"):
-                continue  # a whole number glued to a word or a code (5th, 7B20, 30MM)
+            elif not currency and match.group("digits").isdigit():
+                continue  # a bare digit run glued to a word or a code (5th, 7B20, 30MM)
         elif match.group("word"):
             scale = _SCALES[" ".join(match.group("word").lower().split())]
         elif match.group("letter") and currency:
@@ -267,10 +270,14 @@ def _dates(text: str) -> tuple[list[tuple[str, dt.date | tuple[int, int] | None]
         except ValueError:
             found.append((match.start(), match.group(0), None))
     masked = _ISO_DATE.sub(lambda match: " " * len(match.group(0)), text)
+    spans = []
     for match in _WRITTEN_DATE.finditer(masked):
-        month = _MONTHS[(match.group("month") or match.group("month2")).lower().rstrip(".")]
-        day = int(re.match(r"\d+", match.group("day") or match.group("day2")).group(0))
+        word = match.group("month") or match.group("month2")
         year = match.group("year") or match.group("year2")
+        if not year and (not word[0].isupper() or word.lower().startswith("may")):
+            continue  # without a year, "5 may change" and "5 march ahead" are not dates
+        month = _MONTHS[word.lower().rstrip(".")]
+        day = int(re.match(r"\d+", match.group("day") or match.group("day2")).group(0))
         when: dt.date | tuple[int, int] | None
         try:
             dt.date(int(year) if year else 2000, month, day)  # 2000 is a leap year
@@ -278,7 +285,9 @@ def _dates(text: str) -> tuple[list[tuple[str, dt.date | tuple[int, int] | None]
         except ValueError:
             when = None
         found.append((match.start(), match.group(0), when))
-    masked = _WRITTEN_DATE.sub(lambda match: " " * len(match.group(0)), masked)
+        spans.append(match.span())
+    for start, end in spans:
+        masked = masked[:start] + " " * (end - start) + masked[end:]
     found.sort(key=lambda item: item[0])
     return [(written, when) for _, written, when in found], masked
 

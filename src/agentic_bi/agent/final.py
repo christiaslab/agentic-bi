@@ -79,7 +79,8 @@ def check_final_reply(
             "these figures do not appear in the rows of any query you ran: "
             + "; ".join(missing)
             + ". Give figures as the rows have them (rounding allowed, sign kept), or run a "
-            "query for each figure you need"
+            "query for each figure you need. A number inside a name is read as part of the name "
+            "only when the name is written exactly as the schema tool returned it"
         )
 
 

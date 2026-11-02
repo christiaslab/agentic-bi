@@ -924,3 +924,49 @@ def test_a_day_month_date_is_read_as_a_date(text: str) -> None:
 def test_multiples_and_amounts_in_other_notations_are_figures(text: str, value: Decimal) -> None:
     (figure,), _ = find_figures(text)
     assert figure.value == value and not figure.plain_integer
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The top 5 may change once late transactions are reported.",
+        "These 5 march ahead of the rest.",
+    ],
+)
+def test_a_lower_case_month_word_without_a_year_is_not_a_date(text: str) -> None:
+    assert missing(text, TOP5) == []
+
+
+def test_may_is_a_date_only_with_its_year() -> None:
+    assert find_figures("On May 30, 2025.")[1] == ["May 30, 2025"]
+    assert find_figures("The 30 may differ.")[1] == []
+
+
+@pytest.mark.parametrize(
+    ("question", "grounded"),
+    [
+        pytest.param(
+            "Were 2000 awards active in fiscal year 2025?", [2025], id="a-count-like-a-year"
+        ),
+        pytest.param("What about fiscal year 2023?", [2023], id="after-year"),
+        pytest.param("What about FY2022?", [2022], id="after-fy"),
+        pytest.param("What did EPA obligate in 2021?", [2021], id="after-in"),
+    ],
+)
+def test_a_number_of_the_question_is_a_year_only_after_a_word_that_names_a_time(
+    question: str, grounded: list[int]
+) -> None:
+    evidence = build_evidence([], question=question)
+    assert evidence.stated == frozenset(Decimal(year) for year in grounded)
+
+
+def test_a_number_with_a_thousands_separator_glued_to_letters_is_a_figure() -> None:
+    assert missing("1,000s of awards were active.", TOTAL) == ["1,000s"]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [("In 2024-10 it rose.", []), ("In 2023-10 it rose.", ["2023-10"])],
+)
+def test_a_year_and_a_month_is_grounded_by_its_year(text: str, expected: list[str]) -> None:
+    assert missing(text, coverage=COVERAGE) == expected
