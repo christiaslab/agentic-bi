@@ -16,6 +16,8 @@ from typing import Any
 from .envelope import json_safe
 
 _SLUG = re.compile(r"[^a-z0-9]+")
+_TICKS = re.compile(r"`+")
+_MARKDOWN = re.compile(r"[\\`*_\[\]<>|!]")
 
 
 def slug(text: str, limit: int = 48) -> str:
@@ -53,31 +55,38 @@ def render_markdown(transcript: dict[str, Any]) -> str:
         "## Answer",
         "",
     ]
+    # text that came from the model is shown as plain text, never rendered as Markdown
     if answer["status"] == "answered":
-        lines.append(answer["text"])
+        lines += _fenced(answer["text"], "text")
     elif answer["status"] == "refused":
         refusal = answer["refusal"]
-        lines.append(f"Refused, `{refusal['code']}`: {refusal['reason']}")
+        lines += [f"Refused with `{refusal['code']}`:", "", *_fenced(refusal["reason"], "text")]
         if refusal.get("compiler"):
             compiler = refusal["compiler"]
-            lines += [
-                "",
-                f"Compiler refusal: `{compiler['code']}` at `{compiler['field']}`: "
-                f"{compiler['message']}",
-            ]
+            message = f"{compiler['code']} at {compiler['field']}: {compiler['message']}"
+            lines += ["", "Compiler refusal:", "", *_fenced(message, "text")]
     else:
-        lines.append(f"Failed: {answer['failure']}")
+        lines += ["Failed:", "", *_fenced(answer["failure"], "text")]
     lines += ["", "## Queries run", ""]
     if not answer["queries"]:
         lines.append("None.")
     for number, run in enumerate(answer["queries"], start=1):
-        lines += [f"### Query {number}", "", "```json", json.dumps(run["query"]), "```", ""]
-        lines += ["```sql", run["sql"], "```", "", f"Parameters: `{json.dumps(run['params'])}`"]
-        lines += ["", *_table(run["columns"], run["rows"]), ""]
+        lines += [f"### Query {number}", "", *_fenced(json.dumps(run["query"]), "json"), ""]
+        lines += [*_fenced(run["sql"], "sql"), "", "Parameters:", ""]
+        lines += [*_fenced(json.dumps(run["params"]), "json"), ""]
+        lines += [*_table(run["columns"], run["rows"]), ""]
     lines += ["## Conversation", ""]
     for event in transcript["events"]:
         lines += _event(event)
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _fenced(text: str, language: str) -> list[str]:
+    """A code block whose fence is longer than any run of backticks in the text, so no text
+    from the model or the data can close it and turn into Markdown."""
+    longest = max((len(run) for run in _TICKS.findall(text)), default=0)
+    fence = "`" * max(3, longest + 1)
+    return [f"{fence}{language}", text, fence]
 
 
 def _usage(usage: dict[str, Any]) -> str:
@@ -88,7 +97,7 @@ def _usage(usage: dict[str, Any]) -> str:
 
 def _table(columns: list[str], rows: list[list[Any]]) -> list[str]:
     def cell(value: Any) -> str:
-        return "null" if value is None else str(value).replace("|", "\\|")
+        return "null" if value is None else _MARKDOWN.sub(r"\\\g<0>", str(value))
 
     lines = [f"Rows: {len(rows)}", ""]
     if columns:
@@ -112,16 +121,14 @@ def _event(event: dict[str, Any]) -> list[str]:
             kind_of = block.get("type")
             if kind_of == "thinking":
                 summary = block.get("thinking") or "(not shown)"
-                lines += ["Thinking:", "", *[f"> {line}" for line in summary.splitlines()], ""]
+                lines += ["Thinking (summary):", "", *_fenced(summary, "text"), ""]
             elif kind_of == "text":
-                lines += ["Text:", "", "```text", block.get("text", ""), "```", ""]
+                lines += ["Text:", "", *_fenced(block.get("text", ""), "text"), ""]
             elif kind_of == "tool_use":
                 lines += [
                     f"Tool call `{block.get('name')}` (`{block.get('id')}`):",
                     "",
-                    "```json",
-                    json.dumps(block.get("input"), indent=2),
-                    "```",
+                    *_fenced(json.dumps(block.get("input"), indent=2), "json"),
                     "",
                 ]
             else:
@@ -132,16 +139,15 @@ def _event(event: dict[str, Any]) -> list[str]:
         return [
             f"Tool result `{event['name']}` ({status}), as the model received it:",
             "",
-            "```text",
-            event["result"],
-            "```",
+            *_fenced(event["result"], "text"),
             "",
         ]
     if kind == "final_reply":
-        verdict = "accepted" if event["accepted"] else f"rejected: {event['problem']}"
-        return [f"**Final reply {verdict}.**", ""]
+        if event["accepted"]:
+            return ["**Final reply accepted.**", ""]
+        return ["**Final reply rejected:**", "", *_fenced(event["problem"], "text"), ""]
     if kind == "feedback":
-        return ["Harness feedback sent to the model:", "", "```text", event["text"], "```", ""]
+        return ["Harness feedback sent to the model:", "", *_fenced(event["text"], "text"), ""]
     if kind == "stopped":
-        return [f"**Stopped:** {event['reason']}", ""]
+        return ["**Stopped:**", "", *_fenced(event["reason"], "text"), ""]
     return [f"Event `{kind}`.", ""]

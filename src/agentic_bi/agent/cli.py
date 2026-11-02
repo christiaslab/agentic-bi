@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import sys
+import unicodedata
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import TextIO
@@ -148,7 +149,7 @@ def _ask(question, stem, out, model, toolbox, settings, stdout, stderr) -> int:
     except ModelError as exc:
         print(f"stopped: {exc}", file=stderr)
         return 2
-    print(describe(result.answer), file=stdout)
+    print(printable(describe(result.answer)), file=stdout)
     if out is not None:
         paths = write_transcript(out, stem, result.transcript)
         print(f"\nTranscript: {paths[0]} and {paths[1].name}", file=stdout)
@@ -179,7 +180,7 @@ def _session(questions, stems, out, model, toolbox, settings, stdout, stderr) ->
                 "usage": result.transcript["usage"],
             }
         )
-        print(f"[{number}/{len(questions)}] {answer.status}: {question}", file=stdout)
+        print(printable(f"[{number}/{len(questions)}] {answer.status}: {question}"), file=stdout)
         if answer.status == FAILED:
             code = 1
     _write_index(out, index, stopped=None)
@@ -196,9 +197,19 @@ def _write_index(out: Path, index: list[dict[str, object]], stopped: str | None)
         lines += [f"Stopped early: {stopped}", ""]
     lines += ["| # | Status | Tool calls | Question |", "| --- | --- | --- | --- |"]
     for item in index:
-        link = f"[{item['question']}]({item['transcript']})"
+        question = str(item["question"]).replace("|", "\\|")
+        link = f"[{question}]({item['transcript']})"
         lines.append(f"| {item['number']} | {item['status']} | {item['tool_calls']} | {link} |")
     (out / "session.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def printable(text: str) -> str:
+    """Text safe for a terminal: control characters other than newline and tab are escaped,
+    so model output (or a name it repeats) cannot drive the terminal."""
+    return "".join(
+        char if char in "\n\t" or unicodedata.category(char) != "Cc" else f"\\x{ord(char):02x}"
+        for char in text
+    )
 
 
 def describe(answer: Answer) -> str:
