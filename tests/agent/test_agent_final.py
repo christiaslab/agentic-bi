@@ -493,3 +493,8 @@ def test_a_reply_that_parses_is_then_held_to_the_rows() -> None:
     assert check(good, TOTAL_FY) is None
     bad = parse_final_reply(json_answer("EPA obligated $1.80 billion in fiscal year 2025."))
     assert "$1.80 billion" in str(check_problem(bad, TOTAL_FY))
+
+
+def test_the_correction_says_names_count_only_as_returned() -> None:
+    problem = check_problem(answered("Callyo 2009 Corp held $1.70 billion."), TOTAL_FY)
+    assert "exactly as the schema tool returned it" in str(problem)
