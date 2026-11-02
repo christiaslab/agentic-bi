@@ -1,0 +1,32 @@
+table dim_naics
+	lineageTag: 35cdc5e8-7bc9-5f6b-b17f-77cad511a2b0
+
+	column naics_code
+		dataType: string
+		lineageTag: 06731b3a-8c08-5bd5-8ca0-1b6f5609d4d4
+		summarizeBy: none
+		sourceColumn: naics_code
+
+	column naics_description
+		dataType: string
+		lineageTag: 05fff75e-c401-5f7a-a026-ddc10b7942a5
+		summarizeBy: none
+		sourceColumn: naics_description
+
+	partition dim_naics = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(DataFolder & "\dim_naics.parquet")),
+				    Selected = Table.SelectColumns(Source, {"naics_code", "naics_description"}),
+				    Typed = Table.TransformColumnTypes(
+				        Selected,
+				        {
+				            {"naics_code", type text},
+				            {"naics_description", type text}
+				        }
+				    )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

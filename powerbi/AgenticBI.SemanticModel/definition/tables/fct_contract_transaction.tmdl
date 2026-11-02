@@ -1,0 +1,175 @@
+table fct_contract_transaction
+	lineageTag: 883433e1-171e-58a6-ab3c-71311e692907
+
+	/// Net federal action obligations in US dollars: the sum of the obligation amount of every transaction in the selection. De-obligations count as negative amounts, so an award, a month or a group can be net negative. Award-level cumulative totals are not used.
+	measure obligations = SUM ( fct_contract_transaction[obligation_amount] )
+		formatString: #,0.00
+		lineageTag: dc0b7bb0-e6b9-573f-9c67-e4d0e1bf57a4
+
+	/// Number of distinct awards active in the period: awards with at least one transaction in the selection, whatever its amount, so an award with only a de-obligation in the period still counts. It is not the number of new awards. When grouped by fiscal month or by a field that can change within an award, an award active in two groups counts once in each, so the groups can add up to more than the total.
+	measure award_count = DISTINCTCOUNTNOBLANK ( fct_contract_transaction[award_key] )
+		formatString: #,0
+		lineageTag: e0a583c5-4e2f-52de-93b9-b044f6fb43b4
+
+	/// Average net obligations per active award, in US dollars: obligations divided by award_count over the same selection. Both follow their own rules, so de-obligations lower the average and an award active in the period counts even when its amount in the period is zero or negative. It is not an average of award ceilings.
+	measure avg_award_value = DIVIDE ( [obligations], [award_count] )
+		formatString: #,0.00
+		lineageTag: 8f6aea20-9c60-5a4e-9229-f15acb404c34
+
+	/// Share of net obligations held by the ten largest recipients, counted at the parent level: each recipient rolls up to its parent's UEI, or stays under its own UEI when no parent is recorded. Recipients are ranked by their net obligations in the selection; a tie at tenth place is broken by UEI, which does not change the share. The result is a fraction, 1 when ten or fewer recipients are present. Because de-obligations are negative, it can exceed 1 when the remaining recipients are net negative.
+	measure supplier_concentration_top10 =
+			VAR _per_recipient =
+			    ADDCOLUMNS (
+			        VALUES ( fct_contract_transaction[reporting_uei] ),
+			        "@obligations", [obligations]
+			    )
+			VAR _top_10 =
+			    TOPN (
+			        10,
+			        _per_recipient,
+			        [@obligations], DESC,
+			        fct_contract_transaction[reporting_uei], ASC
+			    )
+			VAR _top_10_obligations = SUMX ( _top_10, [@obligations] )
+			VAR _all_obligations = SUMX ( _per_recipient, [@obligations] )
+			RETURN
+			    DIVIDE ( COALESCE ( _top_10_obligations, 0 ), _all_obligations )
+		formatString: 0.000000
+		lineageTag: c7c05d5a-614a-5797-8bc6-5f75935a7eae
+
+	/// Share of net obligations on transactions whose extent-competed code is marked as competed, as a fraction of the net obligations of the whole selection. Transactions with no extent-competed code count as not competed. Numerator and denominator are both net, so de-obligations reduce both.
+	measure competition_rate =
+			VAR _all_obligations = [obligations]
+			VAR _competed_obligations =
+			    CALCULATE (
+			        [obligations],
+			        KEEPFILTERS ( dim_competition[is_competed] = TRUE () )
+			    )
+			RETURN
+			    DIVIDE ( COALESCE ( _competed_obligations, 0 ), _all_obligations )
+		formatString: 0.000000
+		lineageTag: 1fb3e082-7261-5279-a639-043a65e8c3d0
+
+	/// The transaction's unique key at the source
+	column transaction_key
+		dataType: string
+		lineageTag: 6871253f-3052-537b-9179-ba2e61c7ac89
+		summarizeBy: none
+		sourceColumn: transaction_key
+
+	/// The award the transaction belongs to
+	column award_key
+		dataType: string
+		lineageTag: 91e9a9e7-4698-5c4d-a0a0-7a42d8af3d54
+		summarizeBy: none
+		sourceColumn: award_key
+
+	/// Date of the action
+	column action_date
+		dataType: dateTime
+		isHidden
+		formatString: yyyy-mm-dd
+		lineageTag: 818f36a7-49b4-52d5-9106-0a91af09e4c9
+		summarizeBy: none
+		sourceColumn: action_date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	/// Federal action obligation, signed; negative is a de-obligation
+	column obligation_amount
+		dataType: decimal
+		isHidden
+		formatString: #,0.00
+		lineageTag: 409690a5-08d2-5b1d-81f7-96ad64b3fc76
+		summarizeBy: sum
+		sourceColumn: obligation_amount
+
+	/// One of A, B, C, D
+	column award_type_code
+		dataType: string
+		lineageTag: a8072746-0d79-5f7b-ac78-e3e53713baeb
+		summarizeBy: none
+		sourceColumn: award_type_code
+
+	/// Joins dim_recipient
+	column recipient_uei
+		dataType: string
+		isHidden
+		lineageTag: 33647220-58a2-533d-9bcb-6928e20a46e3
+		summarizeBy: none
+		sourceColumn: recipient_uei
+
+	/// The parent UEI recorded on the transaction, else recipient_uei; joins dim_reporting_recipient
+	column reporting_uei
+		dataType: string
+		isHidden
+		lineageTag: a4df37fa-9f8d-56f3-bda5-ce68b4527487
+		summarizeBy: none
+		sourceColumn: reporting_uei
+
+	/// Awarding sub-agency, joins dim_sub_agency
+	column sub_agency_code
+		dataType: string
+		isHidden
+		lineageTag: cfa9036e-5048-56fe-b685-5046e0c4f070
+		summarizeBy: none
+		sourceColumn: sub_agency_code
+
+	/// Joins dim_psc
+	column psc_code
+		dataType: string
+		isHidden
+		lineageTag: e956091d-4782-5570-a330-cb827c78479a
+		summarizeBy: none
+		sourceColumn: psc_code
+
+	/// Joins dim_naics
+	column naics_code
+		dataType: string
+		isHidden
+		lineageTag: 3594aeaa-89ec-50f7-811e-5138216f78a9
+		summarizeBy: none
+		sourceColumn: naics_code
+
+	/// Extent competed, joins dim_competition
+	column competition_code
+		dataType: string
+		isHidden
+		lineageTag: 7e33eea5-d980-5025-9322-3de37fdc167a
+		summarizeBy: none
+		sourceColumn: competition_code
+
+	/// Place of performance, US state or territory code, null when abroad
+	column pop_state_code
+		dataType: string
+		lineageTag: bab7af6f-03b7-5321-ae67-99f9bcdd8dec
+		summarizeBy: none
+		sourceColumn: pop_state_code
+
+	partition fct_contract_transaction = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(DataFolder & "\fct_contract_transaction.parquet")),
+				    Selected = Table.SelectColumns(Source, {"transaction_key", "award_key", "action_date", "obligation_amount", "award_type_code", "recipient_uei", "reporting_uei", "sub_agency_code", "psc_code", "naics_code", "competition_code", "pop_state_code"}),
+				    Typed = Table.TransformColumnTypes(
+				        Selected,
+				        {
+				            {"transaction_key", type text},
+				            {"award_key", type text},
+				            {"action_date", type date},
+				            {"obligation_amount", Currency.Type},
+				            {"award_type_code", type text},
+				            {"recipient_uei", type text},
+				            {"reporting_uei", type text},
+				            {"sub_agency_code", type text},
+				            {"psc_code", type text},
+				            {"naics_code", type text},
+				            {"competition_code", type text},
+				            {"pop_state_code", type text}
+				        }
+				    )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

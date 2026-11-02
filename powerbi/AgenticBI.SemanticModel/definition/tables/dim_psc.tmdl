@@ -1,0 +1,32 @@
+table dim_psc
+	lineageTag: 152c8935-bb14-5a05-9a67-e2ec59ea884d
+
+	column psc_code
+		dataType: string
+		lineageTag: e6a6f103-bb66-5b2e-bc78-45107d646bce
+		summarizeBy: none
+		sourceColumn: psc_code
+
+	column psc_description
+		dataType: string
+		lineageTag: 68617d8d-f202-583b-977a-dff175b35aa3
+		summarizeBy: none
+		sourceColumn: psc_description
+
+	partition dim_psc = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(DataFolder & "\dim_psc.parquet")),
+				    Selected = Table.SelectColumns(Source, {"psc_code", "psc_description"}),
+				    Typed = Table.TransformColumnTypes(
+				        Selected,
+				        {
+				            {"psc_code", type text},
+				            {"psc_description", type text}
+				        }
+				    )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

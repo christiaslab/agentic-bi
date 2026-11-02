@@ -1,0 +1,32 @@
+table dim_sub_agency
+	lineageTag: 5dad16b5-f334-5dfd-8137-54a55323422e
+
+	column sub_agency_code
+		dataType: string
+		lineageTag: 1b089d8a-f5d1-5552-af8d-f51e8e052974
+		summarizeBy: none
+		sourceColumn: sub_agency_code
+
+	column sub_agency_name
+		dataType: string
+		lineageTag: dc67a061-6308-5179-9885-dd050ee70ae6
+		summarizeBy: none
+		sourceColumn: sub_agency_name
+
+	partition dim_sub_agency = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(DataFolder & "\dim_sub_agency.parquet")),
+				    Selected = Table.SelectColumns(Source, {"sub_agency_code", "sub_agency_name"}),
+				    Typed = Table.TransformColumnTypes(
+				        Selected,
+				        {
+				            {"sub_agency_code", type text},
+				            {"sub_agency_name", type text}
+				        }
+				    )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

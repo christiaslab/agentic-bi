@@ -1,0 +1,27 @@
+relationship cd7bb19c-a408-53a0-9034-dac80e764160
+	fromColumn: fct_contract_transaction.action_date
+	toColumn: dim_date.date
+
+relationship 803387eb-5e5d-5b50-b4d1-e0d443ce216c
+	fromColumn: fct_contract_transaction.recipient_uei
+	toColumn: dim_recipient.recipient_uei
+
+relationship d8c9d334-464b-5f99-b698-e0293581237e
+	fromColumn: fct_contract_transaction.reporting_uei
+	toColumn: dim_reporting_recipient.reporting_uei
+
+relationship f6c84c8f-3775-548d-8134-86eba7075af8
+	fromColumn: fct_contract_transaction.sub_agency_code
+	toColumn: dim_sub_agency.sub_agency_code
+
+relationship a6ef4286-cb60-5578-84b1-3a117689b572
+	fromColumn: fct_contract_transaction.psc_code
+	toColumn: dim_psc.psc_code
+
+relationship aa7e65d3-5d03-50e7-9bcd-85221acc6fee
+	fromColumn: fct_contract_transaction.naics_code
+	toColumn: dim_naics.naics_code
+
+relationship 5bff4611-6451-51af-ac63-2e87b59c45fc
+	fromColumn: fct_contract_transaction.competition_code
+	toColumn: dim_competition.competition_code

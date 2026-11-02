@@ -1,0 +1,39 @@
+table dim_competition
+	lineageTag: 17da1124-b871-5dd9-b550-19a9e77d28fa
+
+	column competition_code
+		dataType: string
+		lineageTag: 5465b4c3-08fb-5c7a-8f8c-8555b876391b
+		summarizeBy: none
+		sourceColumn: competition_code
+
+	column competition_description
+		dataType: string
+		lineageTag: 77d8e1ee-730d-5743-b6b0-d8424fb791ca
+		summarizeBy: none
+		sourceColumn: competition_description
+
+	column is_competed
+		dataType: boolean
+		lineageTag: 1c97bf94-a140-5815-8471-55182f9b40cd
+		summarizeBy: none
+		sourceColumn: is_competed
+
+	partition dim_competition = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(DataFolder & "\dim_competition.parquet")),
+				    Selected = Table.SelectColumns(Source, {"competition_code", "competition_description", "is_competed"}),
+				    Typed = Table.TransformColumnTypes(
+				        Selected,
+				        {
+				            {"competition_code", type text},
+				            {"competition_description", type text},
+				            {"is_competed", type logical}
+				        }
+				    )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

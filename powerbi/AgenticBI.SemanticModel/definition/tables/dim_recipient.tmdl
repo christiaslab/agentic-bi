@@ -1,0 +1,32 @@
+table dim_recipient
+	lineageTag: b94d54b1-0389-58eb-9f53-7b17bdfadc10
+
+	column recipient_uei
+		dataType: string
+		lineageTag: c0f5ca7d-02f1-57d4-a3de-6266589eefb9
+		summarizeBy: none
+		sourceColumn: recipient_uei
+
+	column recipient_name
+		dataType: string
+		lineageTag: fe0a970e-206d-580e-a2d6-c0d90c1c9dba
+		summarizeBy: none
+		sourceColumn: recipient_name
+
+	partition dim_recipient = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(DataFolder & "\dim_recipient.parquet")),
+				    Selected = Table.SelectColumns(Source, {"recipient_uei", "recipient_name"}),
+				    Typed = Table.TransformColumnTypes(
+				        Selected,
+				        {
+				            {"recipient_uei", type text},
+				            {"recipient_name", type text}
+				        }
+				    )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table
