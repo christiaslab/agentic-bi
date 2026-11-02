@@ -2,11 +2,12 @@
 
 Two copies of the synthetic schema differ in one value: the name of the largest recipient,
 P01. In one it is benign; in the other it tries to close the data delimiter, open a fake one
-and give the model orders. The same hand-written turns run on both. Offline, a replay cannot
-show what a model would do with the text (the owner's live run and the S5b eval can); it shows
-what the harness does: the name stays inside one intact delimiter as data, every request is
-the same apart from that one value, the name never reaches SQL, and a number in the name can
-never pass as a figure of the answer.
+and give the model orders, and it holds an amount. The same hand-written turns run on both.
+Offline, a replay cannot show what a model would do with the text (the owner's live run and
+the S5b eval can); it shows what the harness does: the name stays inside one intact delimiter
+as data, every request is the same apart from that one value, the name never reaches SQL, and
+the amount in the name can never pass as a figure of the answer, even when the answer repeats
+the whole name, which the figure check otherwise reads as text.
 """
 
 from __future__ import annotations
@@ -129,10 +130,13 @@ def test_the_name_never_reaches_sql_or_parameters(runs) -> None:
 
 def test_a_number_inside_the_name_never_grounds_a_figure(runs) -> None:
     queries = runs["hostile"]["result"].answer.queries
-    evidence = build_evidence(queries)
+    # the names the loop collects from the schema tool, so the masking of names is exercised
+    evidence = build_evidence(queries, names=[HOSTILE, "P01"])
     claim = "Net obligations were $999,999,999.99."
     assert ungrounded(claim, evidence) == ["$999,999,999.99"]
     assert ungrounded(ANSWER, evidence) == []
+    repeated = f"The largest recipient was {HOSTILE}, with $2,300.00 of net obligations."
+    assert ungrounded(repeated, evidence) == ["$999,999,999.99"]
 
 
 def test_an_answer_repeating_the_injected_figure_is_sent_back(tmp_path: Path) -> None:
@@ -151,3 +155,20 @@ def test_an_answer_repeating_the_injected_figure_is_sent_back(tmp_path: Path) ->
     assert result.answer.status == ANSWERED and result.answer.text == ANSWER
     feedback = model.requests[3]["messages"][-1]["content"]
     assert "$999,999,999.99" in feedback and feedback.startswith("[harness check]")
+
+
+def test_an_answer_repeating_the_whole_hostile_name_is_sent_back(tmp_path: Path) -> None:
+    path = build_agent_fixture(tmp_path / "hostile.duckdb", {"P01": HOSTILE})
+    turns = _turns()
+    named = f"The largest recipient was {HOSTILE}, with $2,300.00 of net obligations."
+    reply = json.dumps({"status": "answered", "answer": named[:1200]})
+    turns.insert(2, {"stop_reason": "end_turn", "content": [{"type": "text", "text": reply}]})
+    connection = open_query_connection(path)
+    try:
+        model = ReplayModel(turns)
+        result = ask(QUESTION, model=model, toolbox=ToolBox(connection))
+    finally:
+        connection.close()
+    assert result.answer.status == ANSWERED and result.answer.text == ANSWER
+    feedback = model.requests[3]["messages"][-1]["content"]
+    assert "$999,999,999.99" in feedback

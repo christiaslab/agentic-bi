@@ -433,10 +433,16 @@ def test_the_code_of_a_refusal_does_not_change_what_its_reason_may_say() -> None
 # --- checking: the settings reach the evidence ------------------------------------------------
 
 
-def test_the_question_grounds_a_figure_of_the_answer() -> None:
+def test_the_question_grounds_a_plain_whole_number_of_the_answer() -> None:
+    reply = answered("Of the top 3 you asked about, the first held $1.70 billion.")
+    assert check(reply, TOTAL_FY, question="Who were the top 3 recipients?") is None
+    assert "3" in str(check_problem(reply, TOTAL_FY, question="Who were the top recipients?"))
+
+
+def test_an_amount_of_the_question_is_not_grounded_by_the_question() -> None:
     reply = answered("No: EPA obligated $1.70 billion, below the 3 billion you asked about.")
-    assert check(reply, TOTAL_FY, question="Did EPA obligate over 3 billion?") is None
-    assert "3 billion" in str(check_problem(reply, TOTAL_FY, question="Did EPA obligate a lot?"))
+    problem = check_problem(reply, TOTAL_FY, question="Did EPA obligate over 3 billion?")
+    assert "3 billion" in str(problem)
 
 
 def test_the_coverage_grounds_the_year_of_an_answer() -> None:

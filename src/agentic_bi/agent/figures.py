@@ -1,29 +1,33 @@
 """Every figure in the agent's text must appear in the rows of a query it ran.
 
-A figure is a number written in the text: ``$1,697,318,332.65``, ``6,016``, ``44.9%``,
-``1.70 billion``, ``$1.7BN``, ``-450``, both ends of ``10-15%``. Numbers that are part of a
-word or a code (``F108``, ``FY2025``, ``Q3``, ``5th``, ``2.5x``, a UEI) are not figures, but a
-number written with a dollar sign always is, whatever follows it. ISO dates are checked as
-dates.
+**What is a figure.** A number written in the text: ``$1,697,318,332.65``, ``6,016``,
+``44.9%``, ``$1.70 billion``, ``$1.7BN``, ``USD 5,000``, ``2.5x``, ``-450``, both ends of
+``10-15%``. A number that is part of a code or a word is not (``F108``, ``FY2025``, ``Q3``,
+``5th``, ``7B20``, ``30MM``, a UEI), unless it is written with a currency sign: an amount is
+always a figure, whatever follows it. Dates are checked as dates, written as ISO dates
+(``2024-10-01``) or in words (``October 1, 2024``, ``1 October 2024``, ``September 30``).
 
-A figure is grounded when either
+**When a figure is grounded.** When it
 
-- it equals a **measured value**, a metric cell of a row, at the precision it is written:
-  ``44.9%`` matches a share of 0.449020 and ``1.70 billion`` matches 1,697,318,332.65, but the
-  sign must agree, so a de-obligation keeps its minus; or
-- it is a plain whole number (no currency, decimals, percent or scale word) equal to a
-  **frame number** of the queries: a grain or dimension value in the rows (fiscal year 2025,
-  month 4, NAICS code 562910), a numeric filter value, the query's ``limit``, the ``n`` of a
-  top-n metric, a rank from 1 to the number of rows, or a year, month or day of the time range
-  or of the data's coverage; or
-- it has the value of a figure the user wrote in the question ("over 2 billion", "fiscal
-  year 2023"), so that an answer or a refusal can repeat it.
+- equals a **measured value**, a metric cell of a row, at the precision it is written, with the
+  same sign: ``44.9%`` matches a share of 0.449020, ``$1.70 billion`` matches
+  1,697,318,332.65, and a de-obligation keeps its minus; or
+- is a plain whole number that **frames a query**: a grain or dimension value in the rows
+  (fiscal year 2025, month 4, NAICS code 562910), a numeric filter value, the query's
+  ``limit``, the ``n`` of a top-n metric, or the year of a query's time range or of the data's
+  coverage; or
+- is a plain whole number **the question wrote** (fiscal year 2023, the top 3).
 
-Label text never counts as evidence: names come from the schema tool, not from rows, so a
-recipient name that holds a number cannot ground a figure stated elsewhere. A name the schema
-tool returned, written out in full in the text (``CHENEGA SENTINEL 360, LLC``), is text and not
-a figure, so the number inside it is not checked. Nothing the model computes itself (a sum of
-rows, a difference, a growth rate) is grounded; the agent must run a query for it instead.
+A date is grounded when it is a date of a query's time range, of the coverage, or of the
+question. Nothing the model works out itself passes: a sum or a difference of rows, a ratio,
+a multiple, a growth rate, a count of rows or a rank written in digits. The agent runs a query
+for each figure it needs and writes ranks as words.
+
+**Names.** Names come from the schema tool, never from rows, so a name grounds nothing. A name
+the schema tool returned and the text writes out in full, or without its legal suffix (``LLC``,
+``INC``), is text: a whole number inside it (``CHENEGA SENTINEL 360, LLC``, ``3M``) is part of
+the name and is not checked. Any other number inside it (with a currency sign, a decimal point,
+a percent or a scale word) is still a figure, so a name cannot carry an amount into an answer.
 """
 
 from __future__ import annotations
@@ -32,36 +36,50 @@ import datetime as dt
 import math
 import re
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 from .answer import QueryRun
 
 _ISO_DATE = re.compile(r"(?<![\w.\-/])\d{4}-\d{2}-\d{2}(?![\w\-])")
+_MONTHS = {
+    "january": 1, "jan": 1, "february": 2, "feb": 2, "march": 3, "mar": 3, "april": 4,
+    "apr": 4, "may": 5, "june": 6, "jun": 6, "july": 7, "jul": 7, "august": 8, "aug": 8,
+    "september": 9, "sept": 9, "sep": 9, "october": 10, "oct": 10, "november": 11, "nov": 11,
+    "december": 12, "dec": 12,
+}  # fmt: skip
+_MONTH = "(?:" + "|".join(sorted(_MONTHS, key=len, reverse=True)) + r")\.?"
+_DAY = r"\d{1,2}(?:st|nd|rd|th)?"
+_WRITTEN_DATE = re.compile(
+    rf"\b(?P<month>{_MONTH})\s+(?P<day>{_DAY})(?:,?\s+(?P<year>\d{{4}}))?(?![\w,]\d)"
+    rf"|\b(?P<day2>{_DAY})\s+(?P<month2>{_MONTH}),?\s+(?P<year2>\d{{4}})\b",
+    re.IGNORECASE,
+)
 _NUMBER = re.compile(
     r"""
     (?<![\w.])                      # not inside a word, a code or a decimal
     (?<![A-Za-z_][-\u2212/,])       # not joined to a word: top-5, COVID-19
     (?P<sign>[-\u2212])?
-    (?P<currency>\$)?
+    (?P<currency>\$|US\$|USD\s?)?
     (?P<sign2>[-\u2212])?
     (?P<digits>(?>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?))  # atomic: never "2" of "2.5x"
+    (?P<glued>[\w%\u00d7]*)         # glued on: 44.9%, 1.7bn, 2.5x, 5th, 7B20, 30MM
     (?:
-        (?P<tail>%|[A-Za-z]+)       # glued: 44.9%, 1.7bn, 5th, 2.5x
-      | \s(?P<word>(?i:percent|per\s+cent|thousand|million|billion|trillion))\b
-      | \s(?P<spaced>%)
+        \s(?P<word>(?i:percent|per\s+cent|thousand|million|billion|trillion|bn|mn|tn))\b
+      | \s(?P<letter>[kKmMbB])\b
+      | \s?(?P<spaced>%|\u00d7)
     )?
     """,
     re.VERBOSE,
 )
+_HUNDREDTH = Decimal("0.01")
 _SCALES = {
-    "%": Decimal("0.01"),
-    "percent": Decimal("0.01"),
-    "per cent": Decimal("0.01"),
+    "%": _HUNDREDTH,
+    "percent": _HUNDREDTH,
+    "per cent": _HUNDREDTH,
     "k": Decimal(10) ** 3,
     "thousand": Decimal(10) ** 3,
     "m": Decimal(10) ** 6,
-    "mm": Decimal(10) ** 6,
     "mn": Decimal(10) ** 6,
     "million": Decimal(10) ** 6,
     "b": Decimal(10) ** 9,
@@ -70,10 +88,17 @@ _SCALES = {
     "tn": Decimal(10) ** 12,
     "trillion": Decimal(10) ** 12,
 }
+# "mm" is left out on purpose: in product names it means millimetres (GUNS, THROUGH 30MM).
+_MULTIPLIERS = ("x", "\u00d7")
 _NUMERIC_TEXT = re.compile(r"-?\d+(?:\.\d+)?")
 # A name worth masking: at least four characters with a letter and a digit. Pure digits stay
 # figures or frame numbers; a name without a digit holds no number to mask.
 _NAME = re.compile(r"(?=.*[A-Za-z])(?=.*\d).{4,}", re.DOTALL)
+_LEGAL_SUFFIX = re.compile(
+    r"[,\s]+(?:L\.?L\.?C\.?|INC\.?|INCORPORATED|CORP\.?|CORPORATION|CO\.?|COMPANY|LTD\.?|"
+    r"LIMITED|L\.?P\.?|LLP|PLC)\s*$",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -84,6 +109,11 @@ class Figure:
     value: Decimal
     tolerance: Decimal
     plain_integer: bool
+    # where it was found, and whether it may be part of a name (a whole number, bare or
+    # glued to letters, with no currency, decimal point, percent or scale word)
+    start: int = field(default=0, compare=False)
+    end: int = field(default=0, compare=False)
+    name_like: bool = field(default=False, compare=False)
 
 
 @dataclass(frozen=True)
@@ -97,27 +127,9 @@ class Evidence:
 
 
 def find_figures(text: str) -> tuple[list[Figure], list[str]]:
-    """The figures in ``text`` and the ISO dates in it, in order of appearance."""
-    dates = [match.group(0) for match in _ISO_DATE.finditer(text)]
-    masked = _ISO_DATE.sub(lambda match: " " * len(match.group(0)), text)
-    figures = []
-    for match in _NUMBER.finditer(masked):
-        written = match.group("tail") or match.group("word") or match.group("spaced") or ""
-        suffix = " ".join(written.lower().split())
-        currency = match.group("currency") is not None
-        if suffix and suffix not in _SCALES:
-            if not currency:
-                continue  # glued to a word or a code (5th, 2.5x, 3D): not a figure
-            suffix = ""  # "$9.9xyz" is still an amount, read without the unknown tail
-        digits = match.group("digits").replace(",", "")
-        decimals = len(digits.split(".", 1)[1]) if "." in digits else 0
-        scale = _SCALES[suffix] if suffix else Decimal(1)
-        negative = bool(match.group("sign") or match.group("sign2"))
-        value = Decimal(digits) * scale * (-1 if negative else 1)
-        tolerance = Decimal(5) * Decimal(10) ** (-decimals - 1) * scale
-        plain = not suffix and decimals == 0 and not currency
-        figures.append(Figure(match.group(0).strip(), value, tolerance, plain))
-    return figures, dates
+    """The figures in ``text`` and the dates in it, each in order of appearance."""
+    dates, masked = _dates(text)
+    return _figures(masked), [written for written, _ in dates]
 
 
 def build_evidence(
@@ -128,12 +140,11 @@ def build_evidence(
     question: str = "",
     names: Iterable[str] = (),
 ) -> Evidence:
-    """What figures may match: the runs' metric cells, their frame numbers and dates, and the
-    figures and dates of the question; ``names`` are the schema tool's names and codes."""
+    """What figures may match: the runs' metric cells, the numbers and dates that frame the
+    queries, the plain whole numbers and dates of the question, and the schema tool's names."""
     measured: list[Decimal] = []
     frame: set[Decimal] = {Decimal(n) for n in top_n}
     days: set[dt.date] = set(coverage)
-    stated_figures, stated_dates = find_figures(question)
     for run in runs:
         for row in run.rows:
             *keys, value = row
@@ -141,7 +152,6 @@ def build_evidence(
             if number is not None:
                 measured.append(number)
             frame.update(n for n in map(_frame_number, keys) if n is not None)
-        frame.update(Decimal(rank) for rank in range(1, len(run.rows) + 1))
         for item in run.query.get("filters", []):
             values = item["value"] if isinstance(item["value"], list) else [item["value"]]
             frame.update(n for n in map(_frame_number, values) if n is not None)
@@ -150,33 +160,124 @@ def build_evidence(
         time_range = run.query.get("time_range")
         if time_range:
             days.update(dt.date.fromisoformat(time_range[key]) for key in ("start", "end"))
-    for day in days:
-        frame.update(Decimal(part) for part in (day.year, day.month, day.day))
+    frame.update(Decimal(day.year) for day in days)
+    question_dates, masked = _dates(question)
+    stated = {figure.value for figure in _figures(masked) if figure.plain_integer}
+    allowed = {day.isoformat() for day in days}
+    allowed |= {when.isoformat() for _, when in question_dates if isinstance(when, dt.date)}
+    variants = set()
+    for name in names:
+        variants.update((name, _LEGAL_SUFFIX.sub("", name)))
     return Evidence(
         measured=tuple(measured),
         frame=frozenset(frame),
-        stated=frozenset(figure.value for figure in stated_figures),
-        dates=frozenset(day.isoformat() for day in days) | frozenset(stated_dates),
-        names=tuple(sorted({n for n in names if _NAME.fullmatch(n)}, key=len, reverse=True)),
+        stated=frozenset(stated),
+        dates=frozenset(allowed),
+        names=tuple(sorted({n for n in variants if _NAME.fullmatch(n)}, key=len, reverse=True)),
     )
 
 
 def ungrounded(text: str, evidence: Evidence) -> list[str]:
     """Each figure or date of ``text`` that matches nothing in ``evidence``, as written."""
-    for name in evidence.names:
-        pattern = re.compile(rf"(?<!\w){re.escape(name)}(?!\w)", re.IGNORECASE)
-        text = pattern.sub(lambda match: " " * len(match.group(0)), text)
-    figures, dates = find_figures(text)
-    missing = [date for date in dates if date not in evidence.dates]
-    for figure in figures:
+    dates, masked = _dates(text)
+    allowed = {dt.date.fromisoformat(day) for day in evidence.dates}
+    month_days = {(day.month, day.day) for day in allowed}
+    missing = [
+        written
+        for written, when in dates
+        if not (when in allowed if isinstance(when, dt.date) else when in month_days)
+    ]
+    spans = _name_spans(masked, evidence.names)
+    for figure in _figures(masked):
+        if figure.name_like and any(a <= figure.start and figure.end <= b for a, b in spans):
+            continue  # a whole number inside a name the schema tool returned
         if any(abs(value - figure.value) <= figure.tolerance for value in evidence.measured):
             continue
-        if figure.plain_integer and figure.value in evidence.frame:
-            continue
-        if figure.value in evidence.stated:
+        if figure.plain_integer and (
+            figure.value in evidence.frame or figure.value in evidence.stated
+        ):
             continue
         missing.append(figure.text)
     return missing
+
+
+def _figures(text: str) -> list[Figure]:
+    figures = []
+    for match in _NUMBER.finditer(text):
+        currency = match.group("currency") is not None
+        glued = match.group("glued")
+        scale, multiplier, spaced_word = Decimal(1), False, False
+        if glued:
+            key = glued.lower()
+            if key in _SCALES:
+                scale = _SCALES[key]
+            elif key in _MULTIPLIERS:
+                multiplier = True
+            elif not currency:
+                continue  # glued to a word or a code (5th, 7B20, 30MM): not a figure
+        elif match.group("word"):
+            scale, spaced_word = _SCALES[" ".join(match.group("word").lower().split())], True
+        elif match.group("letter") and currency:
+            scale, spaced_word = _SCALES[match.group("letter").lower()], True
+        elif match.group("spaced"):
+            if match.group("spaced") in _MULTIPLIERS:
+                multiplier = True
+            else:
+                scale, spaced_word = _HUNDREDTH, True
+        digits = match.group("digits").replace(",", "")
+        decimals = len(digits.split(".", 1)[1]) if "." in digits else 0
+        negative = bool(match.group("sign") or match.group("sign2"))
+        value = Decimal(digits) * scale * (-1 if negative else 1)
+        tolerance = Decimal(5) * Decimal(10) ** (-decimals - 1) * scale
+        bare = not currency and decimals == 0 and not multiplier
+        plain = bare and scale == 1 and not glued
+        name_like = bare and not spaced_word and scale != _HUNDREDTH
+        written = match.group(0)
+        start = match.start() + len(written) - len(written.lstrip())
+        figures.append(
+            Figure(written.strip(), value, tolerance, plain, start, match.end(), name_like)
+        )
+    return figures
+
+
+def _dates(text: str) -> tuple[list[tuple[str, dt.date | tuple[int, int] | None]], str]:
+    """The dates written in ``text`` with what each means, and the text with them blanked.
+
+    A full date means that day; a month and a day without a year mean that pair; a date that
+    is not a calendar day means nothing and is never grounded.
+    """
+    found: list[tuple[int, str, dt.date | tuple[int, int] | None]] = []
+    for match in _ISO_DATE.finditer(text):
+        try:
+            found.append((match.start(), match.group(0), dt.date.fromisoformat(match.group(0))))
+        except ValueError:
+            found.append((match.start(), match.group(0), None))
+    masked = _ISO_DATE.sub(lambda match: " " * len(match.group(0)), text)
+    for match in _WRITTEN_DATE.finditer(masked):
+        month = _MONTHS[(match.group("month") or match.group("month2")).lower().rstrip(".")]
+        day = int(re.match(r"\d+", match.group("day") or match.group("day2")).group(0))
+        year = match.group("year") or match.group("year2")
+        when: dt.date | tuple[int, int] | None
+        try:
+            dt.date(int(year) if year else 2000, month, day)  # 2000 is a leap year
+            when = dt.date(int(year), month, day) if year else (month, day)
+        except ValueError:
+            when = None
+        found.append((match.start(), match.group(0), when))
+    masked = _WRITTEN_DATE.sub(lambda match: " " * len(match.group(0)), masked)
+    found.sort(key=lambda item: item[0])
+    return [(written, when) for _, written, when in found], masked
+
+
+def _name_spans(text: str, names: Sequence[str]) -> list[tuple[int, int]]:
+    """Where the names occur in ``text``, longest names first, never overlapping."""
+    spans: list[tuple[int, int]] = []
+    for name in names:
+        pattern = re.compile(rf"(?<!\w){re.escape(name)}(?!\w)", re.IGNORECASE)
+        for match in pattern.finditer(text):
+            if all(match.end() <= a or b <= match.start() for a, b in spans):
+                spans.append((match.start(), match.end()))
+    return spans
 
 
 def _number(value: object) -> Decimal | None:
