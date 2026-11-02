@@ -43,7 +43,7 @@ Every field of the allow-list (`spec.FIELDS`), with the star-schema column it fe
 | `award_id_piid` | VARCHAR | unused | the award's PIID, for reading |
 | `modification_number` | VARCHAR | unused | for reading |
 | `federal_action_obligation` | DECIMAL(18,2) | `fct_contract_transaction.obligation_amount` | signed; negative is a de-obligation |
-| `action_date` | DATE | `fct_contract_transaction.action_date`, `dim_date.date` | |
+| `action_date` | DATE | `fct_contract_transaction.action_date` | joins `dim_date.date`; `dim_date` itself is generated from the fiscal year of the slice, not from this field (docs/warehouse.md) |
 | `action_date_fiscal_year` | INTEGER | unused | cross-check for `dim_date.fiscal_year`; always 2025 |
 | `awarding_agency_code` | VARCHAR | unused | slice check: always `068` |
 | `awarding_sub_agency_code` | VARCHAR | `fct_contract_transaction.sub_agency_code`, `dim_sub_agency.sub_agency_code` | |
@@ -90,4 +90,4 @@ Not used: `POST /api/v2/search/spending_by_award_count/` answers 3,203 contract 
 ## Open points for S2
 
 - **Parent UEI varies within a recipient.** On 2026-11-01, 13 of the 1,165 recipient UEIs carry more than one `recipient_parent_uei` across their transactions. Resolved by the contract revision of 2026-11-01: the fact carries `reporting_uei` per transaction (`coalesce(recipient_parent_uei, recipient_uei)`, as the derived top-10 share in `docs/golden/golden.json` does), and `dim_reporting_recipient` has one row per `reporting_uei`. `dim_recipient` keeps no parent column.
-- **Missing competition code.** 5 transactions (net -47,387.44) have no `extent_competed_code`; `dim_competition` needs a row for them or the fact join fails its audit.
+- **Missing competition code.** 5 transactions (net -47,387.44) have no `extent_competed_code`. Resolved in S2: they keep a null `competition_code`, no `dim_competition` row stands for them, and the `foreign_key` audit passes a null key and counts it (docs/warehouse.md).
