@@ -476,7 +476,7 @@ def raised_model_error(error: Exception, settings: AgentSettings = SETTINGS) -> 
 
 
 STATUS_ERRORS = [
-    pytest.param(anthropic.BadRequestError, 400, True, id="400-bad-request"),
+    pytest.param(anthropic.BadRequestError, 400, False, id="400-bad-request"),
     pytest.param(anthropic.AuthenticationError, 401, True, id="401-authentication"),
     pytest.param(anthropic.PermissionDeniedError, 403, True, id="403-permission-denied"),
     pytest.param(anthropic.NotFoundError, 404, True, id="404-not-found"),
@@ -523,10 +523,11 @@ def test_a_missing_model_is_fatal_and_the_message_names_the_model_id() -> None:
     assert "custom-model-id" in str(model_error)
 
 
-def test_a_refused_request_is_fatal_and_the_message_carries_the_apis_reason() -> None:
+def test_a_refused_request_fails_one_question_and_carries_the_apis_reason() -> None:
+    # a 400 can come from one question's own conversation, so the session goes on
     error = status_error(anthropic.BadRequestError, 400, "max_tokens: too large for the model")
     model_error = raised_model_error(error)
-    assert model_error.fatal is True
+    assert model_error.fatal is False
     assert "max_tokens: too large for the model" in str(model_error)
 
 

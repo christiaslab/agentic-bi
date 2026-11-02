@@ -31,6 +31,7 @@ def no_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """No test may reach the live API: the key and the base URL are unset for every test."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
     monkeypatch.delenv("AGENTIC_BI_MODEL", raising=False)
 
 

