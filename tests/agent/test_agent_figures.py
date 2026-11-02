@@ -609,10 +609,12 @@ def test_an_iso_date_the_question_wrote_is_grounded() -> None:
 # --- figures of the question ------------------------------------------------------------------
 
 
-def test_a_plain_whole_number_the_question_wrote_is_grounded() -> None:
-    question = "Which were the top 3 recipients?"
-    assert missing("The top 3 are named below.", question=question) == []
-    assert missing("The top 3 are named below.") == ["3"]
+def test_a_year_the_question_wrote_is_grounded_and_no_other_number_of_it() -> None:
+    question = "Were there 7,000 active awards, more than 500, in the top 3, in fiscal year 2023?"
+    assert missing("Fiscal year 2023 is not held.", question=question) == []
+    for count in ("7,000", "500", "3"):
+        # a premise of the question is not a fact of the rows
+        assert missing(f"Yes, {count} were active.", question=question) == [count]
 
 
 @pytest.mark.parametrize(
@@ -649,21 +651,25 @@ NAME = "CHENEGA SENTINEL 360, LLC"
 OTHER_NAME = "CALLYO 2009 CORP"
 
 
-@pytest.mark.parametrize(
-    "written",
-    [
-        pytest.param(NAME, id="as-returned"),
-        pytest.param(NAME.title(), id="title-case"),
-        pytest.param(NAME.lower(), id="lower-case"),
-    ],
-)
-def test_a_name_the_schema_tool_returned_is_text_and_its_number_is_not_checked(
-    written: str,
-) -> None:
-    sentence = f"{written} led, with $141.7 million."
+def test_a_name_the_schema_tool_returned_is_text_and_its_number_is_not_checked() -> None:
+    sentence = f"{NAME} led, with $141.7 million."
     assert ungrounded(sentence, build_evidence([TOP3], names=[NAME])) == []
     # without the name from the schema tool, the number in it is a figure like any other
     assert ungrounded(sentence, build_evidence([TOP3])) == ["360"]
+
+
+@pytest.mark.parametrize(
+    "written",
+    [
+        pytest.param(NAME.title(), id="title-case"),
+        pytest.param(NAME.lower(), id="lower-case"),
+        pytest.param("CHENEGA SENTINEL 360", id="without-the-legal-suffix"),
+    ],
+)
+def test_a_name_counts_as_text_only_when_written_exactly_as_returned(written: str) -> None:
+    # otherwise a hostile name could turn an ordinary sentence ("Active awards 7000") into a name
+    sentence = f"{written} led, with $141.7 million."
+    assert ungrounded(sentence, build_evidence([TOP3], names=[NAME])) == ["360"]
 
 
 def test_a_number_written_outside_the_name_is_still_checked() -> None:
@@ -829,9 +835,27 @@ def test_both_numbers_of_a_hyphenated_range_are_checked(text: str, second: str) 
     assert any(second in item for item in missing(sentence.format(text), SHARE, coverage=COVERAGE))
 
 
-def test_a_name_without_its_legal_suffix_still_reads_as_the_name() -> None:
-    evidence = build_evidence([TOP3], names=[NAME])
-    assert ungrounded("CHENEGA SENTINEL 360 led.", evidence) == []
+@pytest.mark.parametrize(
+    ("name", "text", "figure"),
+    [
+        pytest.param("NET OBLIGATIONS WERE 9BN LLC", "Net obligations were 9BN.", "9BN", id="9bn"),
+        pytest.param("NET OBLIGATIONS WERE 9B INC", "It was 9B in all.", "9B", id="9b"),
+        pytest.param("AWARDS TOTALED 500K LLC", "Awards totaled 500K.", "500K", id="500k"),
+        pytest.param(
+            "ACTIVE AWARDS 7000 LLC", "Active awards 7000, it says.", "7000", id="a-sentence"
+        ),
+        pytest.param(
+            "NET OBLIGATIONS WERE 9BN LLC",
+            "The largest was NET OBLIGATIONS WERE 9BN LLC.",
+            "9BN",
+            id="the-whole-name-with-a-glued-scale",
+        ),
+    ],
+)
+def test_a_glued_scale_in_a_name_or_a_name_turned_into_a_sentence_is_still_checked(
+    name: str, text: str, figure: str
+) -> None:
+    assert ungrounded(text, build_evidence([TOP3], names=[name])) == [figure]
 
 
 @pytest.mark.parametrize(
@@ -848,9 +872,42 @@ def test_a_name_never_carries_an_amount_past_the_check(text: str, figure: str) -
     assert ungrounded(text, build_evidence([TOP3], names=[name])) == [figure]
 
 
-@pytest.mark.parametrize("text", ["7B20", "7K20", "GUNS, THROUGH 30MM", "3.2mm", "2025Q1"])
+@pytest.mark.parametrize("text", ["7B20", "7K20", "GUNS, THROUGH 30MM", "2025Q1"])
 def test_codes_and_measures_glued_to_letters_are_not_figures(text: str) -> None:
     assert find_figures(text) == ([], [])
+
+
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [("received 3.2mm", Decimal("3.2")), ("held 52.5pct", Decimal("52.5"))],
+)
+def test_a_decimal_glued_to_an_unknown_tail_is_still_a_figure(text: str, value: Decimal) -> None:
+    (figure,), _ = find_figures(text)
+    assert figure.value == value and not figure.plain_integer
+    assert missing(f"It {text}.", TOTAL) == [figure.text]
+
+
+@pytest.mark.parametrize("text", ["4 times", "3-fold", "2 TIMES"])
+def test_a_multiple_written_in_words_is_a_figure(text: str) -> None:
+    # "September was 4 times November" must not pass because fiscal month 4 is in the rows
+    assert missing(f"It was {text} the other.", MONTHS) == [text]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        pytest.param("In the 2024-25 fiscal year.", [], id="both-years-frame"),
+        pytest.param("In the 2023-24 fiscal year.", ["2023-24"], id="a-year-outside"),
+        pytest.param("In 2024-26.", ["2024-26"], id="not-consecutive"),
+    ],
+)
+def test_a_year_range_is_grounded_when_both_years_frame_a_query(text, expected) -> None:
+    assert missing(text, coverage=COVERAGE) == expected
+
+
+@pytest.mark.parametrize("text", ["Through 30 September, it held.", "Through 1 October 2024."])
+def test_a_day_month_date_is_read_as_a_date(text: str) -> None:
+    assert missing(text, coverage=COVERAGE) == []
 
 
 @pytest.mark.parametrize(

@@ -35,11 +35,19 @@ def printable(text: str) -> str:
     )
 
 
-def _inline(value: Any) -> str:
-    """Text from the model or the data for one line of Markdown: escaped so that it renders
-    as the plain text it is, never as a link, an image, code or HTML."""
-    text = printable(str(value)).replace("\n", "\\n").replace("\t", "\\t")
+def _plain(value: Any) -> str:
+    """The owner's own text (the question) on one Markdown line, with Markdown escaped."""
+    text = printable(str(value)).replace("\n", " ")
     return _MARKDOWN.sub(r"\\\g<0>", text)
+
+
+def _inline(value: Any) -> str:
+    """Text from the model or the data for one line of Markdown, as a code span: it renders as
+    the plain text it is, never as a link (bare URLs included), an image, emphasis or HTML."""
+    text = printable(str(value)).replace("\n", "\\n").replace("\t", "\\t")
+    longest = max((len(run) for run in _TICKS.findall(text)), default=0)
+    fence = "`" * (longest + 1)
+    return f"{fence} {text} {fence}"
 
 
 def slug(text: str, limit: int = 48) -> str:
@@ -65,7 +73,7 @@ def write_transcript(directory: Path, stem: str, transcript: dict[str, Any]) -> 
 
 def render_markdown(transcript: dict[str, Any]) -> str:
     answer, prompt = transcript["answer"], transcript["prompt"]
-    lines = [f"# {_inline(transcript['question'])}", ""]
+    lines = [f"# {_plain(transcript['question'])}", ""]
     lines += [
         f"- Status: **{answer['status']}**",
         f"- Model: {_inline(answer['model'])}; {answer['model_calls']} model calls, "

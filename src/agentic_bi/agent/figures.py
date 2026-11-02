@@ -16,18 +16,24 @@ always a figure, whatever follows it. Dates are checked as dates, written as ISO
   (fiscal year 2025, month 4, NAICS code 562910), a numeric filter value, the query's
   ``limit``, the ``n`` of a top-n metric, or the year of a query's time range or of the data's
   coverage; or
-- is a plain whole number **the question wrote** (fiscal year 2023, the top 3).
+- is a **year the question wrote** (fiscal year 2023), so a refusal can repeat it. No other
+  number of the question counts: "Were there 7,000 active awards?" cannot be answered "Yes,
+  7,000" unless a query returned it.
 
 A date is grounded when it is a date of a query's time range, of the coverage, or of the
-question. Nothing the model works out itself passes: a sum or a difference of rows, a ratio,
-a multiple, a growth rate, a count of rows or a rank written in digits. The agent runs a query
-for each figure it needs and writes ranks as words.
+question; a year range (``2024-25``) when both years frame a query. Nothing the model works
+out itself passes: a sum or a difference of rows, a ratio, a multiple (``2.5x``, ``4 times``),
+a growth rate, a count of rows or a rank written in digits. The agent runs a query for each
+figure it needs and writes ranks and counts of rows as words. One limit stays: a computed
+whole number that happens to equal a frame number (a count of 7 months after a query whose
+rows hold fiscal month 7) cannot be told apart from it.
 
 **Names.** Names come from the schema tool, never from rows, so a name grounds nothing. A name
-the schema tool returned and the text writes out in full, or without its legal suffix (``LLC``,
-``INC``), is text: a whole number inside it (``CHENEGA SENTINEL 360, LLC``, ``3M``) is part of
-the name and is not checked. Any other number inside it (with a currency sign, a decimal point,
-a percent or a scale word) is still a figure, so a name cannot carry an amount into an answer.
+the schema tool returned and the text writes out exactly as returned is text: a bare whole
+number inside it (``CHENEGA SENTINEL 360, LLC``) is part of the name and is not checked. Any
+other number inside it (with a currency sign, a decimal point, a percent, or a scale, glued or
+spelled) is still a figure, and a name written in another case or without its legal suffix is
+not the name, so a name cannot carry an amount into an answer, nor turn a sentence into a name.
 """
 
 from __future__ import annotations
@@ -52,9 +58,11 @@ _MONTH = "(?:" + "|".join(sorted(_MONTHS, key=len, reverse=True)) + r")\.?"
 _DAY = r"\d{1,2}(?:st|nd|rd|th)?"
 _WRITTEN_DATE = re.compile(
     rf"\b(?P<month>{_MONTH})\s+(?P<day>{_DAY})(?:,?\s+(?P<year>\d{{4}}))?(?![\w,]\d)"
-    rf"|\b(?P<day2>{_DAY})\s+(?P<month2>{_MONTH}),?\s+(?P<year2>\d{{4}})\b",
+    rf"|\b(?P<day2>{_DAY})\s+(?P<month2>{_MONTH})(?:,?\s+(?P<year2>\d{{4}}))?\b",
     re.IGNORECASE,
 )
+# fiscal year 2024-25: both years must frame a query
+_YEAR_RANGE = re.compile(r"(?<![\w.\-/])(?P<first>\d{4})[-/](?P<second>\d{2})(?![\w\-/])")
 _NUMBER = re.compile(
     r"""
     (?<![\w.])                      # not inside a word, a code or a decimal
@@ -68,6 +76,7 @@ _NUMBER = re.compile(
         \s(?P<word>(?i:percent|per\s+cent|thousand|million|billion|trillion|bn|mn|tn))\b
       | \s(?P<letter>[kKmMbB])\b
       | \s?(?P<spaced>%|\u00d7)
+      | (?:\s|-)(?P<times>(?i:times|fold))\b
     )?
     """,
     re.VERBOSE,
@@ -91,14 +100,10 @@ _SCALES = {
 # "mm" is left out on purpose: in product names it means millimetres (GUNS, THROUGH 30MM).
 _MULTIPLIERS = ("x", "\u00d7")
 _NUMERIC_TEXT = re.compile(r"-?\d+(?:\.\d+)?")
+_YEAR = re.compile(r"(?:19|20)\d{2}")
 # A name worth masking: at least four characters with a letter and a digit. Pure digits stay
 # figures or frame numbers; a name without a digit holds no number to mask.
 _NAME = re.compile(r"(?=.*[A-Za-z])(?=.*\d).{4,}", re.DOTALL)
-_LEGAL_SUFFIX = re.compile(
-    r"[,\s]+(?:L\.?L\.?C\.?|INC\.?|INCORPORATED|CORP\.?|CORPORATION|CO\.?|COMPANY|LTD\.?|"
-    r"LIMITED|L\.?P\.?|LLP|PLC)\s*$",
-    re.IGNORECASE,
-)
 
 
 @dataclass(frozen=True)
@@ -162,18 +167,19 @@ def build_evidence(
             days.update(dt.date.fromisoformat(time_range[key]) for key in ("start", "end"))
     frame.update(Decimal(day.year) for day in days)
     question_dates, masked = _dates(question)
-    stated = {figure.value for figure in _figures(masked) if figure.plain_integer}
+    stated = {
+        figure.value
+        for figure in _figures(masked)
+        if figure.plain_integer and _YEAR.fullmatch(figure.text)
+    }
     allowed = {day.isoformat() for day in days}
     allowed |= {when.isoformat() for _, when in question_dates if isinstance(when, dt.date)}
-    variants = set()
-    for name in names:
-        variants.update((name, _LEGAL_SUFFIX.sub("", name)))
     return Evidence(
         measured=tuple(measured),
         frame=frozenset(frame),
         stated=frozenset(stated),
         dates=frozenset(allowed),
-        names=tuple(sorted({n for n in variants if _NAME.fullmatch(n)}, key=len, reverse=True)),
+        names=tuple(sorted({n for n in names if _NAME.fullmatch(n)}, key=len, reverse=True)),
     )
 
 
@@ -187,6 +193,13 @@ def ungrounded(text: str, evidence: Evidence) -> list[str]:
         for written, when in dates
         if not (when in allowed if isinstance(when, dt.date) else when in month_days)
     ]
+    years = evidence.frame | evidence.stated
+    for match in _YEAR_RANGE.finditer(masked):
+        first = int(match.group("first"))
+        second = first // 100 * 100 + int(match.group("second"))
+        if not {Decimal(first), Decimal(second)} <= years or second != first + 1:
+            missing.append(match.group(0))
+    masked = _YEAR_RANGE.sub(lambda match: " " * len(match.group(0)), masked)
     spans = _name_spans(masked, evidence.names)
     for figure in _figures(masked):
         if figure.name_like and any(a <= figure.start and figure.end <= b for a, b in spans):
@@ -206,32 +219,33 @@ def _figures(text: str) -> list[Figure]:
     for match in _NUMBER.finditer(text):
         currency = match.group("currency") is not None
         glued = match.group("glued")
-        scale, multiplier, spaced_word = Decimal(1), False, False
+        scale, multiplier = Decimal(1), False
         if glued:
             key = glued.lower()
             if key in _SCALES:
                 scale = _SCALES[key]
             elif key in _MULTIPLIERS:
                 multiplier = True
-            elif not currency:
-                continue  # glued to a word or a code (5th, 7B20, 30MM): not a figure
+            elif not currency and "." not in match.group("digits"):
+                continue  # a whole number glued to a word or a code (5th, 7B20, 30MM)
         elif match.group("word"):
-            scale, spaced_word = _SCALES[" ".join(match.group("word").lower().split())], True
+            scale = _SCALES[" ".join(match.group("word").lower().split())]
         elif match.group("letter") and currency:
-            scale, spaced_word = _SCALES[match.group("letter").lower()], True
+            scale = _SCALES[match.group("letter").lower()]
         elif match.group("spaced"):
             if match.group("spaced") in _MULTIPLIERS:
                 multiplier = True
             else:
-                scale, spaced_word = _HUNDREDTH, True
+                scale = _HUNDREDTH
+        elif match.group("times"):
+            multiplier = True
         digits = match.group("digits").replace(",", "")
         decimals = len(digits.split(".", 1)[1]) if "." in digits else 0
         negative = bool(match.group("sign") or match.group("sign2"))
         value = Decimal(digits) * scale * (-1 if negative else 1)
         tolerance = Decimal(5) * Decimal(10) ** (-decimals - 1) * scale
-        bare = not currency and decimals == 0 and not multiplier
-        plain = bare and scale == 1 and not glued
-        name_like = bare and not spaced_word and scale != _HUNDREDTH
+        plain = not currency and decimals == 0 and not multiplier and scale == 1 and not glued
+        name_like = plain  # only a bare whole number may be part of a name
         written = match.group(0)
         start = match.start() + len(written) - len(written.lstrip())
         figures.append(
@@ -273,7 +287,7 @@ def _name_spans(text: str, names: Sequence[str]) -> list[tuple[int, int]]:
     """Where the names occur in ``text``, longest names first, never overlapping."""
     spans: list[tuple[int, int]] = []
     for name in names:
-        pattern = re.compile(rf"(?<!\w){re.escape(name)}(?!\w)", re.IGNORECASE)
+        pattern = re.compile(rf"(?<!\w){re.escape(name)}(?!\w)")
         for match in pattern.finditer(text):
             if all(match.end() <= a or b <= match.start() for a, b in spans):
                 spans.append((match.start(), match.end()))

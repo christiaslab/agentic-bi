@@ -1,8 +1,8 @@
 """A recipient name with a number in it can be named in an answer; the number is not a figure.
 
 Ten labels of the 2026-11-01 warehouse hold a number (for example "CHENEGA SENTINEL 360,
-LLC"). A name the schema tool returned, written out in full, is text; a number stated anywhere
-else still has to appear in the rows.
+LLC"). A name the schema tool returned, written out exactly as returned, is text for the bare
+whole number in it; a number stated anywhere else still has to appear in the rows.
 """
 
 from __future__ import annotations
@@ -59,10 +59,12 @@ def test_a_name_with_a_number_can_be_written_out(toolbox) -> None:
     assert result.answer.status == ANSWERED and result.answer.text == text
 
 
-def test_the_name_matches_in_any_case(toolbox) -> None:
+def test_the_name_counts_only_as_returned_not_in_another_case(toolbox) -> None:
+    # the prompt asks for names exactly as the schema tool returns them; a name in another
+    # case could be an ordinary sentence a hostile name was built to match
     text = "The largest recipient was Sentinel 360, LLC, with $2,300.00 of net obligations."
-    result = ask("Largest recipient?", model=ReplayModel(_turns(text)), toolbox=toolbox)
-    assert result.answer.status == ANSWERED
+    result = ask("Largest recipient?", model=ReplayModel(_turns(text, text)), toolbox=toolbox)
+    assert result.answer.status == FAILED and "360" in result.answer.failure
 
 
 def test_the_number_alone_is_still_a_figure(toolbox) -> None:
