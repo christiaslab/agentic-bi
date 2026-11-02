@@ -50,7 +50,7 @@
       "content": [
         {
           "type": "text",
-          "text": "{\"status\": \"refused\", \"code\": \"dimension_not_allowed\", \"reason\": \"supplier_concentration_top10 cannot be grouped by recipient: the share of the ten largest recipients within one recipient would always be 1.\"}"
+          "text": "{\"status\": \"refused\", \"code\": \"dimension_not_allowed\", \"reason\": \"supplier_concentration_top10 cannot be grouped by recipient: within a single recipient, the ten largest recipients would always hold the whole share.\"}"
         }
       ]
     }

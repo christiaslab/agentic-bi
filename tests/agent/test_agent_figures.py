@@ -496,17 +496,32 @@ def test_the_n_of_a_top_n_metric_grounds_that_number() -> None:
 
 
 @pytest.mark.parametrize("rank", ["1", "2", "3"])
-def test_a_rank_from_one_to_the_number_of_rows_is_grounded(rank: str) -> None:
-    assert missing(f"Rank {rank} went to a large recipient.", TOP3) == []
+def test_a_rank_written_in_digits_is_not_grounded(rank: str) -> None:
+    # ranks are written as words; a bare number could as well be a count the model made up
+    assert missing(f"Rank {rank} went to a large recipient.", TOP3) == [rank]
 
 
 def test_a_rank_beyond_the_number_of_rows_is_ungrounded() -> None:
     assert missing("Rank 4 went to a large recipient.", TOP3) == ["4"]
 
 
-@pytest.mark.parametrize("part", ["2025", "3", "31"])
-def test_year_month_and_day_of_the_time_range_are_grounded(part: str) -> None:
-    assert missing(f"The number {part} appears.", QUARTER) == []
+def test_the_year_of_the_time_range_is_grounded() -> None:
+    assert missing("The number 2025 appears.", QUARTER) == []
+
+
+@pytest.mark.parametrize("part", ["3", "31"])
+def test_a_month_or_day_of_the_time_range_alone_is_not_grounded(part: str) -> None:
+    assert missing(f"The number {part} appears.", QUARTER) == [part]
+
+
+@pytest.mark.parametrize("date", ["March 31, 2025", "31 March 2025", "March 31", "Mar. 31, 2025"])
+def test_a_date_of_the_time_range_written_in_words_is_grounded(date: str) -> None:
+    assert missing(f"Up to {date}, net obligations were $530,017,185.75.", QUARTER) == []
+
+
+@pytest.mark.parametrize("date", ["March 30, 2025", "April 31, 2025", "March 30"])
+def test_another_date_written_in_words_is_ungrounded(date: str) -> None:
+    assert missing(f"Up to {date}, it was $530,017,185.75.", QUARTER) == [date]
 
 
 @pytest.mark.parametrize("part", ["2024", "9", "30"])
@@ -514,9 +529,22 @@ def test_the_parts_of_the_coverage_are_not_grounded_by_another_time_range(part: 
     assert missing(f"The number {part} appears.", QUARTER) == [part]
 
 
-@pytest.mark.parametrize("part", ["2024", "10", "1", "2025", "9", "30"])
-def test_year_month_and_day_of_the_coverage_are_grounded(part: str) -> None:
+@pytest.mark.parametrize("part", ["2024", "2025"])
+def test_the_years_of_the_coverage_are_grounded(part: str) -> None:
     assert missing(f"The number {part} appears.", coverage=COVERAGE) == []
+
+
+@pytest.mark.parametrize("part", ["10", "1", "9", "30"])
+def test_a_month_or_day_of_the_coverage_alone_is_not_grounded(part: str) -> None:
+    # "spread over 30 recipients" must not pass because the coverage ends on a 30th
+    assert missing(f"The number {part} appears.", coverage=COVERAGE) == [part]
+
+
+@pytest.mark.parametrize(
+    "text", ["From October 1, 2024 to September 30, 2025.", "Until 30 September 2025."]
+)
+def test_the_dates_of_the_coverage_written_in_words_are_grounded(text: str) -> None:
+    assert missing(text, coverage=COVERAGE) == []
 
 
 @pytest.mark.parametrize("part", ["2023", "2", "11", "12", "31"])
@@ -581,6 +609,12 @@ def test_an_iso_date_the_question_wrote_is_grounded() -> None:
 # --- figures of the question ------------------------------------------------------------------
 
 
+def test_a_plain_whole_number_the_question_wrote_is_grounded() -> None:
+    question = "Which were the top 3 recipients?"
+    assert missing("The top 3 are named below.", question=question) == []
+    assert missing("The top 3 are named below.") == ["3"]
+
+
 @pytest.mark.parametrize(
     "text",
     [
@@ -590,11 +624,10 @@ def test_an_iso_date_the_question_wrote_is_grounded() -> None:
         pytest.param("$2000 million", id="in-millions"),
     ],
 )
-def test_a_figure_the_question_wrote_is_grounded_in_any_notation_of_its_value(text: str) -> None:
+def test_an_amount_the_question_wrote_is_not_grounded_by_the_question(text: str) -> None:
+    # a premise of the question is not a fact of the rows: "Yes, $3 billion" must not pass
     question = "Did EPA obligate over 2 billion dollars?"
-    sentence = f"Nothing is known about {text}."
-    assert missing(sentence, question=question) == []
-    assert missing(sentence) == [text]
+    assert missing(f"Nothing is known about {text}.", question=question) == [text]
 
 
 def test_a_figure_the_question_did_not_write_is_ungrounded() -> None:
@@ -647,7 +680,7 @@ def test_a_name_that_holds_a_number_cannot_ground_that_number_elsewhere() -> Non
     "text",
     [
         pytest.param("SENTINEL 360 led.", id="part-of-the-name"),
-        pytest.param("CHENEGA SENTINEL 360, LLCS led.", id="letters-glued-on-after"),
+        pytest.param("CHENEGA SENTINELS 360, LLC led.", id="a-word-of-the-name-changed"),
         pytest.param("XCHENEGA SENTINEL 360, LLC led.", id="letters-glued-on-before"),
     ],
 )
@@ -712,7 +745,7 @@ def test_evidence_without_runs_holds_only_the_coverage_dates() -> None:
     assert evidence.stated == frozenset()
     assert evidence.names == ()
     assert evidence.dates == frozenset({"2024-10-01", "2025-09-30"})
-    assert evidence.frame == frozenset(Decimal(n) for n in (2024, 10, 1, 2025, 9, 30))
+    assert evidence.frame == frozenset(Decimal(n) for n in (2024, 2025))
 
 
 def test_evidence_of_nothing_is_empty() -> None:
@@ -732,10 +765,11 @@ def test_evidence_holds_the_values_the_frame_the_stated_figures_and_the_dates() 
         Decimal("151198107.99"),
         *(cell for _, cell in RECIPIENTS),
     )
-    # Year 2025 and months 4 and 5 of the grain cells, ranks 1 to 5 (and the limit 5), the top-n
-    # 10, and the year, month and day of the time range and of the coverage.
-    assert evidence.frame == frozenset(Decimal(n) for n in (1, 2, 3, 4, 5, 9, 10, 30, 2024, 2025))
-    assert evidence.stated == frozenset({Decimal(2_000_000_000), Decimal(2023)})
+    # Year 2025 and months 4 and 5 of the grain cells, the limit 5, the top-n 10, and the years
+    # of the time range and of the coverage; no rank, month or day on its own.
+    assert evidence.frame == frozenset(Decimal(n) for n in (4, 5, 10, 2024, 2025))
+    # only the plain whole numbers of the question, never its amounts
+    assert evidence.stated == frozenset({Decimal(2023)})
     assert evidence.dates == frozenset({"2024-10-01", "2025-09-30", "2025-03-31"})
 
 
@@ -793,3 +827,43 @@ def test_both_numbers_of_a_hyphenated_range_are_checked(text: str, second: str) 
         second in item for item in missing(sentence.format(spelled_out), SHARE, coverage=COVERAGE)
     )
     assert any(second in item for item in missing(sentence.format(text), SHARE, coverage=COVERAGE))
+
+
+def test_a_name_without_its_legal_suffix_still_reads_as_the_name() -> None:
+    evidence = build_evidence([TOP3], names=[NAME])
+    assert ungrounded("CHENEGA SENTINEL 360 led.", evidence) == []
+
+
+@pytest.mark.parametrize(
+    ("text", "figure"),
+    [
+        pytest.param("NET OBLIGATIONS WERE $9.9 BILLION LLC led.", "$9.9 BILLION", id="amount"),
+        pytest.param("PAY 12.5% NOW LLC led.", "12.5%", id="percent"),
+        pytest.param("SHARE 0.75 HOLDINGS led.", "0.75", id="decimal"),
+        pytest.param("WORTH 9 BILLION INC led.", "9 BILLION", id="scale-word"),
+    ],
+)
+def test_a_name_never_carries_an_amount_past_the_check(text: str, figure: str) -> None:
+    name = text.removesuffix(" led.")
+    assert ungrounded(text, build_evidence([TOP3], names=[name])) == [figure]
+
+
+@pytest.mark.parametrize("text", ["7B20", "7K20", "GUNS, THROUGH 30MM", "3.2mm", "2025Q1"])
+def test_codes_and_measures_glued_to_letters_are_not_figures(text: str) -> None:
+    assert find_figures(text) == ([], [])
+
+
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [
+        pytest.param("2.5x", Decimal("2.5"), id="glued-x"),
+        pytest.param("3 \u00d7", Decimal("3"), id="times-sign"),
+        pytest.param("USD9.9 billion", Decimal("9.9E9"), id="usd-glued"),
+        pytest.param("USD 5,000", Decimal("5000"), id="usd-spaced"),
+        pytest.param("$1.7 bn", Decimal("1.7E9"), id="spaced-bn"),
+        pytest.param("$1.7 B", Decimal("1.7E9"), id="spaced-letter-with-a-dollar"),
+    ],
+)
+def test_multiples_and_amounts_in_other_notations_are_figures(text: str, value: Decimal) -> None:
+    (figure,), _ = find_figures(text)
+    assert figure.value == value and not figure.plain_integer
