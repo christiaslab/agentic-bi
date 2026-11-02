@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from agentic_bi.verifier import ISSUE_CODES, VERDICTS
-from agentic_bi.verifier.questions import _KEYS, REFUSAL_REASONS
+from agentic_bi.verifier.questions import QUESTION_KEYS, REFUSAL_REASONS
 
 ROOT = Path(__file__).resolve().parents[2]
 GUIDE = ROOT / "docs" / "verifier.md"
@@ -22,7 +22,7 @@ def test_every_verdict_and_issue_code_is_named(path: Path) -> None:
 
 def test_the_evals_readme_explains_every_field_and_refusal_reason() -> None:
     text = EVALS.read_text(encoding="utf-8")
-    for name in (*_KEYS, *REFUSAL_REASONS):
+    for name in (*QUESTION_KEYS, *REFUSAL_REASONS):
         assert f"`{name}`" in text, name
     assert "docs/golden/golden.json" in text
 

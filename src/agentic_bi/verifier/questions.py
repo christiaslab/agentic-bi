@@ -32,7 +32,7 @@ REFUSAL_REASONS = ("out_of_catalog", "outside_slice", "ambiguous")
 REQUIREMENTS = ("top_n",)
 _ID = re.compile(r"q[0-9]{2}")
 _GROUP = re.compile(r"[a-z][a-z0-9_]{0,40}")
-_KEYS = {
+QUESTION_KEYS = {
     "id",
     "question",
     "outcome",
@@ -121,7 +121,7 @@ def _question(item: Any, index: int, known_golden: frozenset[str]) -> Question:
     where = f"questions[{index}]"
     if not isinstance(item, Mapping):
         raise QuestionSetError(f"{where}: expected a mapping")
-    unknown = set(item) - _KEYS
+    unknown = set(item) - QUESTION_KEYS
     if unknown:
         raise QuestionSetError(f"{where}: unknown keys {sorted(unknown)}")
     for key in ("id", "question", "outcome"):
