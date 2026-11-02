@@ -62,6 +62,11 @@ TOTAL_FY = make_run([(Decimal("1697318332.65"),)], time_range=FY)
 TOTAL = make_run([(Decimal("1697318332.65"),)])
 COUNT = make_run([(6016,)], ("award_count",))
 SHARE = make_run([(0.4490202395623079,)], ("supplier_concentration_top10",))
+TOP2 = make_run(
+    [("DBD6KDKXWN65", Decimal("141735682.10")), ("VHPJR3MJWV49", Decimal("136907984.75"))],
+    ("recipient", "obligations"),
+    dimensions=["recipient"],
+)
 
 
 def json_answer(text: object = ANSWER) -> str:
@@ -373,13 +378,8 @@ def test_a_rounded_figure_is_accepted_and_a_wrongly_rounded_one_is_not() -> None
 
 
 def test_a_sum_the_model_computed_is_rejected() -> None:
-    top2 = make_run(
-        [("DBD6KDKXWN65", Decimal("141735682.10")), ("VHPJR3MJWV49", Decimal("136907984.75"))],
-        ("recipient", "obligations"),
-        dimensions=["recipient"],
-    )
     reply = answered("The top two recipients together hold $278,643,666.85.")
-    assert "$278,643,666.85" in str(check_problem(reply, top2))
+    assert "$278,643,666.85" in str(check_problem(reply, TOP2))
 
 
 # --- checking: a refusal reason is held to the same figures -----------------------------------
@@ -449,6 +449,13 @@ def test_the_top_n_grounds_the_n_of_an_answer() -> None:
     reply = answered("The top 10 recipients hold 44.9% of net obligations.")
     assert check(reply, SHARE, top_n=[10]) is None
     assert "10" in str(check_problem(reply, SHARE))
+
+
+def test_the_names_the_schema_tool_returned_reach_the_figure_check() -> None:
+    name = "CHENEGA SENTINEL 360, LLC"
+    reply = answered(f"The largest recipient was {name}, with $141.7 million.")
+    assert check(reply, TOP2, names=[name]) is None
+    assert "360" in str(check_problem(reply, TOP2))
 
 
 # --- feedback ---------------------------------------------------------------------------------

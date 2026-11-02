@@ -6,9 +6,9 @@ reaches it (ADR-0002 points 5, 7 and 9). The synthetic database is the one docum
 R03 500.00, R04 400.00, R05 300.00, R06 100.00. The warehouse figures (1132 reporting
 recipients, 56 place-of-performance states, 342 PSC codes) are those of the committed snapshot.
 
-The last section holds tests marked ``xfail(strict=True)``. Each pins one defect of
-``agentic_bi.agent`` with the input that shows it; when the defect is fixed the test passes,
-the strict marker fails the run, and the marker is removed.
+The last section holds regression tests for defects found while these tests were written,
+each with the input that showed it: a coverage list shared with the caller, codes cut off by
+the limit reported as not found, and text with an unpaired surrogate.
 """
 
 from __future__ import annotations
@@ -1479,13 +1479,9 @@ def test_the_tool_box_gives_the_model_the_same_definitions(synthetic_toolbox) ->
     assert synthetic_toolbox.definitions() is not synthetic_toolbox.definitions()
 
 
-# --- defects of agentic_bi.agent, each pinned by a strict xfail ---------------------------------
+# --- regressions: defects found while writing these tests, now fixed ---------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="catalog() copies COVERAGE one level deep: the caller shares its two lists",
-)
 def test_catalog_coverage_is_a_fresh_copy_the_caller_can_change(monkeypatch) -> None:
     # private lists in the module's table, so a failing run cannot change the real ones
     for key in ("award_types", "fiscal_years"):
@@ -1497,10 +1493,6 @@ def test_catalog_coverage_is_a_fresh_copy_the_caller_can_change(monkeypatch) -> 
     assert tools.catalog() == expected
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="schema() lists a code the limit cut off as not_found, though the code exists",
-)
 @pytest.mark.parametrize(
     ("dimension", "codes"),
     [
@@ -1528,11 +1520,6 @@ LONE_SURROGATE_AS_BOUND_TEXT = [
 ]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=RuntimeError,
-    reason="a lone surrogate in a bound text makes DuckDB raise RuntimeError; call() lets it out",
-)
 @pytest.mark.parametrize(("tool", "arguments"), LONE_SURROGATE_AS_BOUND_TEXT)
 def test_call_never_raises_for_a_lone_surrogate_in_the_input(
     synthetic_toolbox, tool: str, arguments: Any
@@ -1549,11 +1536,6 @@ LONE_SURROGATE_AS_INPUT_NAME = [
 ]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=UnicodeEncodeError,
-    reason="an input name with a lone surrogate is echoed raw as the error field, not UTF-8 text",
-)
 @pytest.mark.parametrize(("tool", "arguments"), LONE_SURROGATE_AS_INPUT_NAME)
 def test_the_result_text_is_valid_utf8_for_a_lone_surrogate_in_an_input_name(
     synthetic_toolbox, tool: str, arguments: Any
