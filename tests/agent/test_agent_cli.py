@@ -370,6 +370,12 @@ def test_read_questions_reads_windows_line_endings(tmp_path: Path) -> None:
     assert read_questions(path) == [QUESTION, SECOND_QUESTION]
 
 
+def test_read_questions_ignores_a_byte_order_mark(tmp_path: Path) -> None:
+    path = tmp_path / "questions.txt"
+    path.write_bytes(b"\xef\xbb\xbf# the questions\n" + QUESTION.encode() + b"\n")
+    assert read_questions(path) == [QUESTION]
+
+
 @pytest.mark.parametrize(
     "content",
     ["", "\n\n", "# only a comment\n   \n  # another\n"],

@@ -8,6 +8,7 @@ one query may return to the model, and the query timeout.
 
 from __future__ import annotations
 
+import math
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, replace
@@ -50,8 +51,11 @@ class AgentSettings:
                 raise ValueError(f"{name} must be a positive integer")
         if type(self.max_rows) is not int or not 1 <= self.max_rows <= 10_000:
             raise ValueError("max_rows must be an integer from 1 to 10000")
-        if self.timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be positive")
+        timeout = self.timeout_seconds
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+            raise ValueError("timeout_seconds must be a number of seconds")
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("timeout_seconds must be positive and finite")
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None, **overrides: Any) -> AgentSettings:

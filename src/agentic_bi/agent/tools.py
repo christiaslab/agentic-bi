@@ -216,9 +216,12 @@ def schema(
     """The allowed values of one dimension, with labels where the contract names them.
 
     ``search`` keeps values whose code or label contains the text, ignoring case; ``codes``
-    keeps only the listed codes and reports the ones not found. Values come sorted by code,
-    at most ``limit`` of them, with the number that matched.
+    keeps only the listed codes (``true`` and ``false`` for a boolean dimension) and reports
+    the ones that match no value, after the search. Values come sorted by code, at most
+    ``limit`` of them (1 to 200), with the number that matched.
     """
+    if type(limit) is not int or not 1 <= limit <= SCHEMA_MAX_LIMIT:
+        raise ValueError(f"limit must be an integer from 1 to {SCHEMA_MAX_LIMIT}")
     cat = cat if cat is not None else default_catalog()
     found = cat.dimensions.get(dimension) if isinstance(dimension, str) else None
     if found is None:
@@ -259,13 +262,18 @@ def schema(
         ],
     }
     if wanted is not None:
-        seen = {value for value, _ in rows}
+        seen = {_spelled(value) for value, _ in rows}
         payload["not_found"] = [code for code in wanted if code not in seen]
     return payload
 
 
+def _spelled(value: Any) -> Any:
+    """A value as a code is written: a boolean as JSON spells it, anything else as it is."""
+    return ("true" if value else "false") if isinstance(value, bool) else value
+
+
 def _keeps(value: Any, label: str | None, needle: str | None, wanted: list[str] | None) -> bool:
-    if wanted is not None and value not in wanted:
+    if wanted is not None and _spelled(value) not in wanted:
         return False
     if needle is None:
         return True
@@ -509,7 +517,8 @@ class ToolBox:
                 raise ToolInputError("codes", f"expected a list of 1 to {MAX_CODES} codes")
             codes = [_text(code, f"codes[{i}]") for i, code in enumerate(codes)]
         search = arguments.get("search")
-        limit = arguments.get("limit", SCHEMA_DEFAULT_LIMIT)
+        limit = arguments.get("limit")
+        limit = SCHEMA_DEFAULT_LIMIT if limit is None else limit  # null means absent, as for search
         if type(limit) is not int or not 1 <= limit <= SCHEMA_MAX_LIMIT:
             raise ToolInputError("limit", f"expected an integer from 1 to {SCHEMA_MAX_LIMIT}")
         return schema(
