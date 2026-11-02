@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "source": "data/snapshot/manifest.json",
+  "snapshot_capture_date_utc": "2026-11-01",
+  "built_with": "agentic_bi.warehouse.build",
+  "compression": "snappy",
+  "fact": {
+    "table": "fct_contract_transaction",
+    "row_count": 12687,
+    "obligation_sum": "1697318332.65"
+  },
+  "total_bytes": 428153,
+  "files": [
+    {
+      "table": "fct_contract_transaction",
+      "path": "fct_contract_transaction.parquet",
+      "rows": 12687,
+      "bytes": 338794,
+      "sha256": "9beb13e393c5542fd8e03c9f2ef161f70afb167bc7366c77721ab73285d22279"
+    },
+    {
+      "table": "dim_date",
+      "path": "dim_date.parquet",
+      "rows": 365,
+      "bytes": 2830,
+      "sha256": "641276f7366b88522bb3c62bb46d51a13ff810307154bd51cf1ad2454f9e05d1"
+    },
+    {
+      "table": "dim_recipient",
+      "path": "dim_recipient.parquet",
+      "rows": 1165,
+      "bytes": 34892,
+      "sha256": "7aafb302e62324249925c5de5ecfdbb8a7e666eceeab7eca3789c1bb4dc112a5"
+    },
+    {
+      "table": "dim_reporting_recipient",
+      "path": "dim_reporting_recipient.parquet",
+      "rows": 1132,
+      "bytes": 34196,
+      "sha256": "4d0b8dc95fa393361e7333cd97d9179fb7efc4bce30bcc3848cb74509173e01f"
+    },
+    {
+      "table": "dim_sub_agency",
+      "path": "dim_sub_agency.parquet",
+      "rows": 1,
+      "bytes": 489,
+      "sha256": "5285af37c0eaa4111ee7bd712f73bc871e2f32f0b5cd75cc19beb2746f364e63"
+    },
+    {
+      "table": "dim_psc",
+      "path": "dim_psc.parquet",
+      "rows": 342,
+      "bytes": 9753,
+      "sha256": "4de12934c7412a4d42fb552e483baf8e09ee38e0b040403c50c1469805f34f93"
+    },
+    {
+      "table": "dim_naics",
+      "path": "dim_naics.parquet",
+      "rows": 226,
+      "bytes": 6528,
+      "sha256": "378dbdac9927cbee9cbbffaaab33f74f41b05d3d6f4174d6a52160309d47e128"
+    },
+    {
+      "table": "dim_competition",
+      "path": "dim_competition.parquet",
+      "rows": 6,
+      "bytes": 671,
+      "sha256": "f2561e3b9509cc3875e936a733a81aac1cb148109c33e9cdc326a456c377af49"
+    }
+  ]
+}
