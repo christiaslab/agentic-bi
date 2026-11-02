@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,27 @@ from .envelope import json_safe
 _SLUG = re.compile(r"[^a-z0-9]+")
 _TICKS = re.compile(r"`+")
 _MARKDOWN = re.compile(r"[\\`*_\[\]<>|!]")
+
+
+def printable(text: str) -> str:
+    """Text safe for a terminal or a log line: control characters other than newline and tab,
+    and unpaired surrogates, are written as escapes, so model output (or a name it repeats)
+    can neither drive a terminal nor break UTF-8."""
+    return "".join(
+        char
+        if char in "\n\t" or unicodedata.category(char) not in ("Cc", "Cs")
+        else f"\\x{ord(char):02x}"
+        if ord(char) < 0x100
+        else f"\\u{ord(char):04x}"
+        for char in text
+    )
+
+
+def _inline(value: Any) -> str:
+    """Text from the model or the data for one line of Markdown: escaped so that it renders
+    as the plain text it is, never as a link, an image, code or HTML."""
+    text = printable(str(value)).replace("\n", "\\n").replace("\t", "\\t")
+    return _MARKDOWN.sub(r"\\\g<0>", text)
 
 
 def slug(text: str, limit: int = 48) -> str:
@@ -33,19 +55,20 @@ def write_transcript(directory: Path, stem: str, transcript: dict[str, Any]) -> 
     for path in paths:
         if path.exists():
             raise FileExistsError(f"{path} exists; choose another --out directory")
-    paths[0].write_text(
-        json.dumps(json_safe(transcript), indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
-    paths[1].write_text(render_markdown(transcript), encoding="utf-8")
+    # an unpaired surrogate (valid JSON from the API, not valid UTF-8) is written as its
+    # escape: still the same JSON value, and the Markdown shows it as text
+    text = json.dumps(json_safe(transcript), indent=2, ensure_ascii=False) + "\n"
+    paths[0].write_text(text, encoding="utf-8", errors="backslashreplace")
+    paths[1].write_text(render_markdown(transcript), encoding="utf-8", errors="backslashreplace")
     return paths
 
 
 def render_markdown(transcript: dict[str, Any]) -> str:
     answer, prompt = transcript["answer"], transcript["prompt"]
-    lines = [f"# {transcript['question']}", ""]
+    lines = [f"# {_inline(transcript['question'])}", ""]
     lines += [
         f"- Status: **{answer['status']}**",
-        f"- Model: `{answer['model']}`; {answer['model_calls']} model calls, "
+        f"- Model: {_inline(answer['model'])}; {answer['model_calls']} model calls, "
         f"{answer['tool_calls']} tool calls",
         f"- Prompt: `{prompt['version']}` (sha256 `{prompt['sha256']}`)",
         f"- Provenance: {transcript['provenance']}",
@@ -60,7 +83,11 @@ def render_markdown(transcript: dict[str, Any]) -> str:
         lines += _fenced(answer["text"], "text")
     elif answer["status"] == "refused":
         refusal = answer["refusal"]
-        lines += [f"Refused with `{refusal['code']}`:", "", *_fenced(refusal["reason"], "text")]
+        lines += [
+            f"Refused with {_inline(refusal['code'])}:",
+            "",
+            *_fenced(refusal["reason"], "text"),
+        ]
         if refusal.get("compiler"):
             compiler = refusal["compiler"]
             message = f"{compiler['code']} at {compiler['field']}: {compiler['message']}"
@@ -113,8 +140,8 @@ def _event(event: dict[str, Any]) -> list[str]:
         return [f"**Question:** {event['text']}", ""]
     if kind == "model_turn":
         lines = [
-            f"### Model turn {event['turn']} (`{event['model']}`, stop_reason "
-            f"`{event['stop_reason']}`)",
+            f"### Model turn {event['turn']} ({_inline(event['model'])}, stop_reason "
+            f"{_inline(event['stop_reason'])})",
             "",
         ]
         for block in event["content"]:
@@ -126,18 +153,18 @@ def _event(event: dict[str, Any]) -> list[str]:
                 lines += ["Text:", "", *_fenced(block.get("text", ""), "text"), ""]
             elif kind_of == "tool_use":
                 lines += [
-                    f"Tool call `{block.get('name')}` (`{block.get('id')}`):",
+                    f"Tool call {_inline(block.get('name'))} ({_inline(block.get('id'))}):",
                     "",
                     *_fenced(json.dumps(block.get("input"), indent=2), "json"),
                     "",
                 ]
             else:
-                lines += [f"Block of type `{kind_of}`.", ""]
+                lines += [f"Block of type {_inline(kind_of)}.", ""]
         return lines
     if kind == "tool_call":
         status = "error" if event["is_error"] else "ok"
         return [
-            f"Tool result `{event['name']}` ({status}), as the model received it:",
+            f"Tool result {_inline(event['name'])} ({status}), as the model received it:",
             "",
             *_fenced(event["result"], "text"),
             "",

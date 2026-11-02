@@ -17,8 +17,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
-import unicodedata
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import TextIO
@@ -31,9 +31,10 @@ from .loop import AgentResult, ask
 from .model import AnthropicModel, ModelClient, ModelError
 from .settings import DEFAULT_MODEL, EFFORTS, MODEL_ENV, AgentSettings
 from .tools import ToolBox
-from .transcript import slug, write_transcript
+from .transcript import printable, slug, write_transcript
 
 KEY_ENV = "ANTHROPIC_API_KEY"
+_MARKDOWN_LINK = re.compile(r"[\\`*_\[\]<>|!]")
 NO_KEY = (
     f"{KEY_ENV} is not set. The live agent calls the Anthropic API with your own key; nothing "
     "was sent. Set the key in your shell and run again. The offline replays need no key: "
@@ -201,18 +202,11 @@ def _write_index(out: Path, index: list[dict[str, object]], stopped: str | None)
         lines += [f"Stopped early: {stopped}", ""]
     lines += ["| # | Status | Tool calls | Question |", "| --- | --- | --- | --- |"]
     for item in index:
-        question = str(item["question"]).replace("|", "\\|")
+        question = _MARKDOWN_LINK.sub(r"\\\g<0>", printable(str(item["question"])))
         link = f"[{question}]({item['transcript']})"
         lines.append(f"| {item['number']} | {item['status']} | {item['tool_calls']} | {link} |")
-    (out / "session.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
-def printable(text: str) -> str:
-    """Text safe for a terminal: control characters other than newline and tab are escaped,
-    so model output (or a name it repeats) cannot drive the terminal."""
-    return "".join(
-        char if char in "\n\t" or unicodedata.category(char) != "Cc" else f"\\x{ord(char):02x}"
-        for char in text
+    (out / "session.md").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8", errors="backslashreplace"
     )
 
 
