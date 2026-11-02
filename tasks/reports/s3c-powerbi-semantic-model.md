@@ -8,14 +8,29 @@ Done, except the owner's Desktop check, which the brief leaves to the owner. The
 
 Microsoft's documentation was not fetched: the session's network allows package installs and the USAspending hosts only (AGENTS.md). Following the brief's stop rule, the generator stays conservative and every TMDL or PBIP detail written from knowledge rather than from the documentation is listed below for the owner to check in Desktop.
 
-Tests: 214 in `tests/powerbi/`; VERIFY_TOTAL in the whole suite.
+Tests: 227 in `tests/powerbi/`; 475 in the whole suite. The 108 warnings are pydantic deprecation notices raised inside SQLMesh when the warehouse is built; the warehouse tests show the same.
 
 ## Verification
 
 `uv run ruff check . && uv run ruff format --check . && uv run pytest -q && python3 scripts/commit_hygiene.py`, last lines, run on the branch before this report was committed:
 
 ```text
-VERIFY_OUTPUT
+All checks passed!
+70 files already formatted
+........................................................................ [ 15%]
+........................................................................ [ 30%]
+........................................................................ [ 45%]
+........................................................................ [ 60%]
+........................................................................ [ 75%]
+........................................................................ [ 90%]
+...........................................                              [100%]
+=============================== warnings summary ===============================
+475 passed, 108 warnings in 12.04s
+{
+  "commits": 29,
+  "findings": [],
+  "passed": true
+}
 ```
 
 ## Done means, item by item
@@ -218,7 +233,9 @@ Written from knowledge of TMDL and of files Power BI Desktop writes; each needs 
 10. Format strings unquoted: `#,0.00`, `#,0`, `0.000000`, `0`, `yyyy-mm-dd`.
 11. `definition.pbism`: schema `semanticModel/definitionProperties/1.0.0`, `"version": "4.0"`, `"settings": {}`. `definition.pbir`: schema `report/definitionProperties/2.0.0`, `"version": "4.0"`, `datasetReference.byPath.path` `../AgenticBI.SemanticModel`. `AgenticBI.pbip`: schema `pbip/pbipProperties/1.0.0`, one report artifact.
 12. Power Query reads the DuckDB-written Parquet files (Snappy, `DECIMAL(18,2)` stored as INT64, `DATE` as INT32) with `Parquet.Document(File.Contents(...))`, and `Currency.Type` holds the amounts exactly.
-13. The report folder holds only `definition.pbir`; no `report.json` and no PBIR `definition/` folder, since the brief forbids `report.json`. Desktop may refuse to open it; `docs/powerbi.md` gives the ADR-0004 fallback (save a blank report as PBIP once, then regenerate).
+13. The report folder holds only `definition.pbir`; no `report.json` and no PBIR `definition/` folder, since the brief forbids `report.json`. Desktop may refuse to open it; `docs/powerbi.md` gives the ADR-0004 fallback (save a blank report as PBIP in a scratch folder, copy its report folder in, regenerate).
+14. No `.platform` files are written. They serve Fabric Git integration, which is out of scope; Desktop is expected to open a project without them.
+15. The grammar checker's own unsure points: which names need quotes (it applies the stricter rule, plain identifiers only, with relationship UUIDs allowed bare), whether a blank line between `///` and its object is refused, the exact depth Desktop requires for expression bodies, and its lists of allowed values and children, all from knowledge.
 
 ## What the owner must check in Desktop
 
@@ -231,7 +248,20 @@ Written from knowledge of TMDL and of files Power BI Desktop writes; each needs 
 
 ## Review
 
-REVIEW_SECTION
+Two subagents that did not write the generator took part. One wrote the TMDL grammar checker from the grammar and the generated files alone; it found nothing it believed invalid and raised the missing `ref table` lines (detail 3 above). One reviewed the whole diff against the brief's `done_means` and the Code Review Rules, from the diff and the brief. It confirmed the scope (every path owned, `.gitignore` two lines only, no dependency change), the five golden values, the DAX against the compiler's SQL under every filter the compiler allows, and found no injection, secret or shell use. Its findings and what became of them:
+
+| Finding | Outcome |
+| --- | --- |
+| `generate.py` checked links on the output folder and `definition/` only; a linked `AgenticBI.SemanticModel` or `AgenticBI.Report`, or a linked file, could be written or emptied through | Fixed: any link between the output folder and a written or removed path is refused; three tests added |
+| The export wrote into `data/model/` before the snapshot check, so a failed check left files that do not reconcile | Fixed: files are written beside the build and moved only after the check passes; a test proves `--out` stays untouched |
+| A chain of stale folders under `definition/` was only partly removed | Fixed: bottom-up removal; a test added |
+| A card visual shows "1.70bn", which cannot be compared to the cent | Fixed in `docs/powerbi.md`: use a table visual, or display units None |
+| The doc said all five values are computed through the compiler; the recipient row is a plain sum | Fixed in `docs/powerbi.md` |
+| The Desktop fallback could leave a `model.bim` next to the generated TMDL | Fixed: the fallback saves the blank report in a scratch folder and copies only its report folder |
+| Power BI compares text without case and trims trailing spaces on keys; DuckDB does not | A test now checks every text key of `data/model/` stays distinct when folded; none merges. Noted in `docs/powerbi.md` |
+| Power BI allows slicing a measure in ways the compiler refuses | Noted in `docs/powerbi.md`; not a value difference |
+| The report file was missing at review time | This file |
+| `database` written without a name; no `.platform` files; a report folder with only `definition.pbir` may be refused | Kept, listed among the unverified details above (1, 13, 14) |
 
 ## What changed
 
