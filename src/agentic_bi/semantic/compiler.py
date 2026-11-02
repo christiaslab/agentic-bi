@@ -12,6 +12,10 @@ Two rules make the output safe by construction (ADR-0002 points 3 and 4):
 Joins to dimensions are LEFT joins: a fact row is never dropped from a total because it has
 no dimension row (the contract audits that case). Time ranges filter the fact's
 ``action_date`` and are inclusive on both ends.
+
+Rows come in the default order (time grain, then dimensions, ascending). An ``order_by``
+puts its own key first and keeps the default keys after it as tie-breakers, so a top-N cut
+is always the same rows; a ``limit`` is a ``?`` placeholder like every other value.
 """
 
 from __future__ import annotations
@@ -33,7 +37,7 @@ from .errors import (
     UnknownMetricError,
     UnknownOperatorError,
 )
-from .query import Filter, StructuredQuery, parse_query
+from .query import Filter, StructuredQuery, check_ordering, parse_query
 
 _IDENTIFIER = re.compile(r"_?[a-z][a-z0-9_]{0,62}")
 _INDENT = "    "
@@ -92,16 +96,34 @@ def compile(
     refs = list(grain.columns) + [dim.column for dim in dimensions] + filter_refs
     refs += _metric_refs(metric, catalog)
     source = _from_clause(refs)
+    order = _order(query, groups)
+    limit = query.limit is not None
 
     if metric.kind == "top_n_share":
-        sql = _top_n_share(metric, catalog, groups, source, where)
+        sql = _top_n_share(metric, catalog, groups, source, where, order, limit)
     else:
         select = [f"{expr} AS {_quote(alias)}" for expr, alias in groups]
         select.append(f"{_aggregate(metric, catalog)} AS {_quote(metric.name)}")
-        sql = _assemble(select, source, where, [expr for expr, _ in groups], groups)
+        sql = _assemble(select, source, where, [expr for expr, _ in groups], order, limit)
+    if limit:
+        # LIMIT ? closes the statement, so its value is the last parameter
+        params.append(query.limit)
 
     columns = tuple(alias for _, alias in groups) + (metric.name,)
     return CompiledQuery(sql=sql, params=params, columns=columns, query=query)
+
+
+def _order(query: StructuredQuery, groups: list[tuple[str, str]]) -> list[str]:
+    """ORDER BY items: the requested key, then the default keys as tie-breakers."""
+    check_ordering(query)
+    keys = [alias for _, alias in groups]
+    items = []
+    if query.order_by is not None:
+        key = query.order_by.field
+        direction = {"asc": "ASC", "desc": "DESC"}[query.order_by.direction]
+        items.append(f"{_quote(key)} {direction} NULLS LAST")
+        keys = [alias for alias in keys if alias != key]
+    return items + [f"{_quote(alias)} ASC NULLS LAST" for alias in keys]
 
 
 def _allowed_dimension(name: str, where: str, metric: Metric, catalog: Catalog) -> Dimension:
@@ -207,6 +229,8 @@ def _top_n_share(
     groups: list[tuple[str, str]],
     source: list[str],
     where: list[str],
+    order: list[str],
+    limit: bool,
 ) -> str:
     """Share of the measure held by the top n entities, within each output group.
 
@@ -218,7 +242,7 @@ def _top_n_share(
     keys = [_quote(alias) for _, alias in groups]
     selection = [f"{expr} AS {_quote(alias)}" for expr, alias in groups]
     selection += [f"{entity} AS {_quote('_entity')}", f"{amount} AS {_quote('_amount')}"]
-    inner = _assemble(selection, source, where, [], [])
+    inner = _assemble(selection, source, where, [], [], False)
 
     per_entity = (
         f"SELECT {', '.join([*keys, _quote('_entity')])}, "
@@ -242,7 +266,8 @@ def _top_n_share(
         [_quote("_ranked")],
         [],
         keys,
-        groups,
+        order,
+        limit,
     )
     indented = inner.replace("\n", f"\n{_INDENT}")
     return (
@@ -272,7 +297,8 @@ def _assemble(
     source: list[str],
     where: list[str],
     group_by: list[str],
-    groups: list[tuple[str, str]],
+    order: list[str],
+    limit: bool,
 ) -> str:
     lines = ["SELECT", ",\n".join(f"{_INDENT}{item}" for item in select)]
     lines.append(f"FROM {source[0]}")
@@ -281,8 +307,10 @@ def _assemble(
         lines.append("WHERE " + f"\n{_INDENT}AND ".join(where))
     if group_by:
         lines.append("GROUP BY " + ", ".join(group_by))
-    if groups:
-        lines.append("ORDER BY " + ", ".join(f"{_quote(a)} ASC NULLS LAST" for _, a in groups))
+    if order:
+        lines.append("ORDER BY " + ", ".join(order))
+    if limit:
+        lines.append("LIMIT ?")
     return "\n".join(lines)
 
 
