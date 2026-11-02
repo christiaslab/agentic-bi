@@ -374,3 +374,15 @@ def test_answer_to_dict_is_json_ready() -> None:
     refusal = Refusal("unknown_metric", "No such metric.", {"code": "unknown_metric"})
     data = Answer(question="q", status=REFUSED, refusal=refusal).to_dict()
     assert json.loads(json.dumps(data))["refusal"]["code"] == "unknown_metric"
+
+
+def test_an_unexpected_database_error_is_an_error_result(synthetic_db) -> None:
+    from agentic_bi.agent import ToolBox
+    from agentic_bi.semantic import open_query_connection
+
+    connection = open_query_connection(synthetic_db)
+    toolbox = ToolBox(connection)
+    connection.close()
+    outcome = toolbox.call("run_query", TOTAL)
+    assert outcome.is_error and outcome.payload["error"]["code"] == "query_error"
+    assert outcome.content.startswith(f'{OPEN} tool="run_query" status="error">')

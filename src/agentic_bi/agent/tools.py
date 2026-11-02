@@ -33,6 +33,7 @@ from agentic_bi.semantic.errors import (
     QueryRefusal,
     QueryTimeoutError,
     RowLimitExceededError,
+    SemanticError,
     UnknownDimensionError,
     UnknownMetricError,
 )
@@ -484,6 +485,10 @@ class ToolBox:
             return self._error(tool, arguments, {"code": "query_timeout", "message": str(exc)})
         except QueryLimitError as exc:  # pragma: no cover - every limit error is named above
             return self._error(tool, arguments, {"code": "query_limit", "message": str(exc)})
+        except (SemanticError, duckdb.Error) as exc:
+            # not reachable from a valid query; kept as an error result so the run goes on
+            # and the transcript shows it
+            return self._error(tool, arguments, {"code": "query_error", "message": str(exc)})
         return ToolOutcome(tool, arguments, wrap(tool, payload), False, payload, run=run)
 
     def _other(self, tool: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
