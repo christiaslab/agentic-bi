@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -20,6 +21,8 @@ from .answer import ANSWERED, REFUSAL_CODES, REFUSED, QueryRun
 from .figures import build_evidence, ungrounded
 
 MAX_ANSWER_CHARS = 1200
+# a code fence around the whole reply, with or without a language and line breaks
+_FENCE = re.compile(r"```[A-Za-z]*\s*(.*?)\s*```", re.DOTALL)
 MAX_REASON_CHARS = 600
 
 
@@ -90,23 +93,28 @@ def feedback(problem: FinalReplyRejected) -> str:
 
 def _json_object(text: str) -> dict[str, Any]:
     stripped = text.strip()
-    if stripped.startswith("```"):
-        stripped = stripped.split("\n", 1)[1] if "\n" in stripped else ""
-        stripped = stripped.rsplit("```", 1)[0].strip()
-    for candidate in (stripped, stripped[stripped.find("{") : stripped.rfind("}") + 1]):
+    fenced = _FENCE.fullmatch(stripped)
+    if fenced:
+        stripped = fenced.group(1)
+    try:
+        data = json.loads(stripped)
+    except ValueError:
+        # prose around one object: read the object, never keep the prose
+        start, end = stripped.find("{"), stripped.rfind("}")
         try:
-            data = json.loads(candidate)
+            data = json.loads(stripped[start : end + 1]) if 0 <= start < end else None
         except ValueError:
-            continue
-        if isinstance(data, dict):
-            return data
-    raise FinalReplyRejected("the final reply must be exactly one JSON object")
+            data = None
+    if not isinstance(data, dict):
+        raise FinalReplyRejected("the final reply must be exactly one JSON object")
+    return data
 
 
 def _keys(data: dict[str, Any], expected: set[str]) -> None:
     if set(data) != expected:
         raise FinalReplyRejected(
-            f"a {data['status']} reply has exactly the keys {', '.join(sorted(expected))}"
+            f"a reply with status {data['status']} has exactly the keys "
+            f"{', '.join(sorted(expected))}"
         )
 
 

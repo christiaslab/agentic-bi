@@ -1,9 +1,9 @@
 """The figure check: every figure in the agent's text must appear in the rows of a query it ran.
 
 The queries are built by hand, the way the tool layer records them: no database, no model.
-Every value is a golden value of docs/golden/golden.json, or a sum of golden values where the
-comment says so, so no figure here is estimated. The unicode minus sign U+2212 is written as an
-escape, so that it cannot be mistaken for a dash.
+Every value is a golden value of docs/golden/golden.json, or a sum or a quotient of golden
+values where the comment says so, so no figure here is estimated. The unicode minus sign U+2212
+is written as an escape, so that it cannot be mistaken for a dash.
 """
 
 from __future__ import annotations
@@ -71,6 +71,8 @@ TOP5 = make_run(
 TOTAL = make_run([(Decimal("1697318332.65"),)])
 TOTAL_FY = make_run([(Decimal("1697318332.65"),)], time_range=FY)
 COUNT = make_run([(6016,)], ("award_count",))
+# The three float cells are quotients of golden values: 1697318332.65 / 6016, then the top-10 sum
+# 762130284.34 over the total, then the competed sum (see BY_COMPETED) over the total.
 AVERAGE = make_run([(282134.03135804523,)], ("avg_award_value",))
 SHARE = make_run([(0.4490202395623079,)], ("supplier_concentration_top10",))
 RATE = make_run([(0.9298753995520864,)], ("competition_rate",))
@@ -210,6 +212,19 @@ def test_an_iso_date_is_found_beside_punctuation_and_is_not_a_number(text: str) 
     assert find_figures(text) == ([], ["2024-10-01"])
 
 
+@pytest.mark.parametrize(
+    "token",
+    [
+        pytest.param("12024-10-01", id="extra-digit-in-front"),
+        pytest.param("ref2024-10-01", id="letters-in-front"),
+        pytest.param("2024-10-011", id="extra-digit-after"),
+        pytest.param("2024-10-01-05", id="extra-part-after"),
+    ],
+)
+def test_a_date_shape_inside_a_longer_token_is_not_an_iso_date(token: str) -> None:
+    assert find_figures(f"See {token} for the detail.")[1] == []
+
+
 def test_figures_are_returned_in_order_of_appearance() -> None:
     figures = read("DBD6KDKXWN65 got $141.7M, VHPJR3MJWV49 got 136.9M, over 6,016 awards.")
     assert [figure.text for figure in figures] == ["$141.7M", "136.9M", "6,016"]
@@ -221,6 +236,7 @@ def test_figures_are_returned_in_order_of_appearance() -> None:
         pytest.param("2.5x", 2, id="multiplier"),
         pytest.param("1.7BN", 1, id="upper-case-bn"),
         pytest.param("3.2mm", 3, id="mm-for-million"),
+        pytest.param("1.7million", 1, id="scale-word-without-a-space"),
     ],
 )
 def test_a_decimal_glued_to_letters_is_not_read_as_its_whole_part(
@@ -464,12 +480,13 @@ def test_a_filter_value_that_is_not_a_number_grounds_no_number(
     assert missing(text, filtered) == expected
 
 
-def test_the_limit_of_a_query_grounds_that_number() -> None:
-    # three rows under a limit of ten: the filters left fewer than ten recipients
-    limited = make_run(RECIPIENTS[:3], RECIPIENT_COLUMNS, dimensions=["recipient"], limit=10)
-    assert missing("These are the top 10 recipients.", limited) == []
-    assert missing("These are the top 10 recipients.", TOP3) == ["10"]
-    assert missing("These are the top 11 recipients.", limited) == ["11"]
+@pytest.mark.parametrize("limit", [5, 10])
+def test_the_limit_of_a_query_grounds_that_number(limit: int) -> None:
+    # three rows under the limit: the filters left fewer recipients than were asked for
+    limited = make_run(RECIPIENTS[:3], RECIPIENT_COLUMNS, dimensions=["recipient"], limit=limit)
+    assert missing(f"These are the top {limit} recipients.", limited) == []
+    assert missing(f"These are the top {limit} recipients.", TOP3) == [str(limit)]
+    assert missing(f"These are the top {limit + 1} recipients.", limited) == [str(limit + 1)]
 
 
 def test_the_n_of_a_top_n_metric_grounds_that_number() -> None:
@@ -666,19 +683,19 @@ def test_a_name_is_matched_literally_and_never_as_a_pattern() -> None:
         pytest.param(float("nan"), id="nan"),
         pytest.param(float("inf"), id="infinity"),
         pytest.param(float("-inf"), id="negative-infinity"),
+        pytest.param(Decimal("NaN"), id="decimal-nan"),
+        pytest.param(Decimal("sNaN"), id="decimal-signaling-nan"),
+        pytest.param(Decimal("Infinity"), id="decimal-infinity"),
+        pytest.param(Decimal("-Infinity"), id="decimal-negative-infinity"),
         pytest.param(True, id="boolean"),
         pytest.param("12", id="text"),
     ],
 )
 def test_a_metric_cell_that_is_not_a_number_is_not_a_measured_value(cell: object) -> None:
+    # a cell that is not a number must not be kept, and must not stop the check either
     evidence = build_evidence([make_run([(cell,)])])
     assert evidence.measured == ()
     assert ungrounded("It was $12 or 12.", evidence) == ["$12", "12"]
-
-
-def test_a_decimal_nan_cell_does_not_stop_the_check() -> None:
-    # Not reachable from a DuckDB DECIMAL column; a float NaN is dropped, and so should this be.
-    assert missing("It was $12.", make_run([(Decimal("NaN"),)])) == ["$12"]
 
 
 def test_a_float_cell_is_kept_as_its_shortest_decimal() -> None:
@@ -740,3 +757,39 @@ def test_a_full_answer_is_grounded_by_the_rows_of_its_query() -> None:
         "fifth, DK4TBEJRAR56, received $66,893,110.69."
     )
     assert missing(text, TOP5) == []
+
+
+# --- gaps found while writing these tests: a number passes without being checked ---------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("$9.9BN", id="bn-in-capitals"),
+        pytest.param("$9.9Bn", id="bn-in-mixed-case"),
+        pytest.param("$9.9mm", id="mm-for-million"),
+        pytest.param("$9.9million", id="million-without-a-space"),
+    ],
+)
+def test_an_amount_with_an_unknown_scale_suffix_is_not_accepted_unchecked(
+    text: str,
+) -> None:
+    # The total is 1.70 billion. Read as nine billion, or flagged as unreadable, it is caught.
+    assert missing(f"EPA obligated {text}.", TOTAL) != []
+
+
+@pytest.mark.parametrize(
+    ("text", "second"),
+    [
+        pytest.param("10-15%", "15", id="percent-range-from-a-month"),
+        pytest.param("30-50%", "50", id="percent-range-from-a-day"),
+    ],
+)
+def test_both_numbers_of_a_hyphenated_range_are_checked(text: str, second: str) -> None:
+    # 10 and 30 are frame numbers (the month and the day of the coverage); the share is 44.9%
+    sentence = "The share was between {} of it."
+    spelled_out = text.replace("-", " to ")
+    assert any(
+        second in item for item in missing(sentence.format(spelled_out), SHARE, coverage=COVERAGE)
+    )
+    assert any(second in item for item in missing(sentence.format(text), SHARE, coverage=COVERAGE))
