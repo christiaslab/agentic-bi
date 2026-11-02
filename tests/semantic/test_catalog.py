@@ -62,7 +62,7 @@ def test_catalog_fixes_the_metric_rules_of_adr_0002() -> None:
         10,
     )
     recipient = catalog.dimensions[concentration.entity]
-    assert recipient.column == ColumnRef("dim_recipient", "reporting_uei")
+    assert recipient.column == ColumnRef("fct_contract_transaction", "reporting_uei")
     assert "parent" in concentration.description and "own UEI" in concentration.description
 
     rate = catalog.metrics["competition_rate"]

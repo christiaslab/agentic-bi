@@ -51,13 +51,8 @@ CREATE TABLE dim_date (
     calendar_year INTEGER NOT NULL,
     calendar_month INTEGER NOT NULL
 );
-CREATE TABLE dim_recipient (
-    recipient_uei VARCHAR PRIMARY KEY,
-    recipient_name VARCHAR,
-    parent_uei VARCHAR,
-    parent_name VARCHAR,
-    reporting_uei VARCHAR NOT NULL
-);
+CREATE TABLE dim_recipient (recipient_uei VARCHAR PRIMARY KEY, recipient_name VARCHAR);
+CREATE TABLE dim_reporting_recipient (reporting_uei VARCHAR PRIMARY KEY, reporting_name VARCHAR);
 CREATE TABLE dim_sub_agency (sub_agency_code VARCHAR PRIMARY KEY, sub_agency_name VARCHAR);
 CREATE TABLE dim_psc (psc_code VARCHAR PRIMARY KEY, psc_description VARCHAR);
 CREATE TABLE dim_naics (naics_code VARCHAR PRIMARY KEY, naics_description VARCHAR);
@@ -73,6 +68,7 @@ CREATE TABLE fct_contract_transaction (
     obligation_amount DECIMAL(18, 2) NOT NULL,
     award_type_code VARCHAR,
     recipient_uei VARCHAR,
+    reporting_uei VARCHAR,
     sub_agency_code VARCHAR,
     psc_code VARCHAR,
     naics_code VARCHAR,
@@ -95,14 +91,14 @@ SELECT
 FROM range(DATE '2024-09-01', DATE '2025-11-01', INTERVAL 1 DAY) AS days(day)
 """
 
+# SYNR01 and SYNR02 report under their parent SYNP01; every other recipient reports under its
+# own UEI (the contract's fallback), so the fact carries the reporting UEI per transaction.
 PARENT = ("SYNP01", "Synthetic Alpha Holdings")
-RECIPIENTS = [
-    ("SYNR01", "Synthetic Alpha East", *PARENT, "SYNP01"),
-    ("SYNR02", "Synthetic Alpha West", *PARENT, "SYNP01"),
-] + [
-    (f"SYNR{i:02d}", f"Synthetic Recipient {i:02d}", None, None, f"SYNR{i:02d}")
-    for i in range(3, 14)
+RECIPIENTS = [("SYNR01", "Synthetic Alpha East"), ("SYNR02", "Synthetic Alpha West")] + [
+    (f"SYNR{i:02d}", f"Synthetic Recipient {i:02d}") for i in range(3, 14)
 ]
+REPORTING_UEI = {"SYNR01": PARENT[0], "SYNR02": PARENT[0]}
+REPORTING_RECIPIENTS = [PARENT] + [r for r in RECIPIENTS if r[0] not in REPORTING_UEI]
 
 SUB_AGENCIES = [
     ("SA1", "Synthetic Sub-agency One"),
@@ -135,7 +131,10 @@ _TX = [
     ("T15", "W13", "2024-11-20", "300.00", "C", "SYNR13", "SA1", "PSC1", "111111", "NC", "TX"),
     ("T16", "W14", "2024-09-30", "5000.00", "C", "SYNR13", "SA1", "PSC1", "111111", "FC", "VA"),
 ]
-TRANSACTIONS = [(*row[:3], Decimal(row[3]), *row[4:]) for row in _TX]
+TRANSACTIONS = [
+    (*row[:3], Decimal(row[3]), *row[4:6], REPORTING_UEI.get(row[5], row[5]), *row[6:])
+    for row in _TX
+]
 
 
 def build_fixture(path: Path) -> Path:
@@ -143,14 +142,15 @@ def build_fixture(path: Path) -> Path:
     with duckdb.connect(str(path)) as con:
         con.execute(DDL)
         con.execute(DIM_DATE)
-        con.executemany("INSERT INTO dim_recipient VALUES (?, ?, ?, ?, ?)", RECIPIENTS)
+        con.executemany("INSERT INTO dim_recipient VALUES (?, ?)", RECIPIENTS)
+        con.executemany("INSERT INTO dim_reporting_recipient VALUES (?, ?)", REPORTING_RECIPIENTS)
         con.executemany("INSERT INTO dim_sub_agency VALUES (?, ?)", SUB_AGENCIES)
         con.executemany("INSERT INTO dim_psc VALUES (?, ?)", PSCS)
         con.executemany("INSERT INTO dim_naics VALUES (?, ?)", NAICS)
         con.executemany("INSERT INTO dim_competition VALUES (?, ?, ?)", COMPETITION)
         con.executemany(
             "INSERT INTO fct_contract_transaction VALUES "
-            "(?, ?, CAST(? AS DATE), ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(?, ?, CAST(? AS DATE), ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             TRANSACTIONS,
         )
     return path

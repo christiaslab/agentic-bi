@@ -67,7 +67,7 @@ dimensions:
       The reporting recipient's UEI: the parent company's UEI when a parent is recorded,
       otherwise the recipient's own UEI. Subsidiaries roll up to their parent, so a
       subsidiary's own UEI never appears here.
-    column: dim_recipient.reporting_uei
+    column: fct_contract_transaction.reporting_uei
     type: string
   pop_state:
     description: >-

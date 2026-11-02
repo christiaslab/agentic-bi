@@ -7,6 +7,7 @@ from agentic_bi.semantic import contract
 
 CONTRACT_DOC = Path(__file__).resolve().parents[2] / "docs" / "contracts" / "star-schema.md"
 TICKED = re.compile(r"`([a-z_]+)`")
+LEADING = re.compile(r"\s*`([a-z_]+)`")
 
 
 def _section(text: str, heading: str) -> list[str]:
@@ -23,7 +24,9 @@ def _documented_tables() -> dict[str, set[str]]:
     for row in _section(text, "Dimensions"):
         cells = [cell.strip() for cell in row.strip("|").split("|")]
         table = TICKED.fullmatch(cells[0]).group(1)
-        tables[table] = set(TICKED.findall(cells[1])) | set(TICKED.findall(cells[2]))
+        # A column opens a comma-separated item; ticked names inside its prose are not columns.
+        others = {m.group(1) for part in cells[2].split(",") if (m := LEADING.match(part))}
+        tables[table] = set(TICKED.findall(cells[1])) | others
     return tables
 
 
