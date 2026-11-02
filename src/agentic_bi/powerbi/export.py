@@ -3,8 +3,9 @@
 ``uv run python -m agentic_bi.powerbi.export --out data/model`` builds the warehouse with
 ``agentic_bi.warehouse.build`` into ``data/tmp/powerbi/`` and writes one Parquet file per
 contract table, with the contract's column names, order and types, rows sorted by the
-table's key. It then reads the files back and checks the fact's row count and obligation
-sum against ``data/snapshot/manifest.json``; a difference stops the export with an error.
+table's key. The files are first written beside the build and the fact's row count and
+obligation sum checked against ``data/snapshot/manifest.json``; a difference stops the
+export with an error and leaves ``--out`` untouched. Only then are the files moved there.
 ``manifest.json`` beside the files records each file's rows, bytes and SHA-256, and the
 fact's checked totals.
 """
@@ -14,7 +15,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import sys
+import tempfile
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
@@ -133,9 +136,21 @@ def export(
     manifest = json.loads(Path(snapshot_manifest).read_text(encoding="utf-8"))
     schema = load_schema()
     built = warehouse.build(database, snapshot_parquet)
-    written = write_parquet(built, out, schema)
-    fact_path = dict(written)[schema.fact]
-    rows, total = check_against_snapshot(fact_path, manifest)
+    target = Path(out)
+    # Write beside the build and check there first: files that do not reconcile with the
+    # snapshot never reach ``out`` (AGENTS.md, never invent data).
+    staging = Path(tempfile.mkdtemp(prefix="export-", dir=Path(built).parent))
+    try:
+        staged = write_parquet(built, staging, schema)
+        rows, total = check_against_snapshot(dict(staged)[schema.fact], manifest)
+        target.mkdir(parents=True, exist_ok=True)
+        written = []
+        for table, path in staged:
+            destination = target / path.name
+            shutil.move(path, destination)
+            written.append((table, destination))
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
 
     files = tuple(
         ExportedFile(table, path, _row_count(path), path.stat().st_size, _sha256(path))

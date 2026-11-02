@@ -410,3 +410,39 @@ def test_the_command_refuses_a_folder_outside_the_repository(tmp_path, capsys) -
     assert generate.main(["--out", str(tmp_path / "project")]) == 1
     assert "outside" in capsys.readouterr().err
     assert not (tmp_path / "project").exists()
+
+
+@pytest.mark.parametrize("linked", [generate.SEMANTIC_MODEL, generate.REPORT])
+def test_writing_refuses_a_linked_project_folder(tmp_path, linked) -> None:
+    elsewhere = tmp_path / "elsewhere"
+    (elsewhere / "definition").mkdir(parents=True)
+    keep = elsewhere / "definition" / "keep.tmdl"
+    keep.write_text("keep", encoding="utf-8")
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / linked).symlink_to(elsewhere, target_is_directory=True)
+    with pytest.raises(PowerBIError, match="symbolic link"):
+        generate.write_project(out)
+    assert keep.read_text(encoding="utf-8") == "keep"
+    assert sorted(p.name for p in elsewhere.rglob("*")) == ["definition", "keep.tmdl"]
+
+
+def test_writing_refuses_a_generated_file_that_is_a_link(tmp_path) -> None:
+    outside = tmp_path / "outside.txt"
+    outside.write_text("keep", encoding="utf-8")
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / f"{generate.PROJECT}.pbip").symlink_to(outside)
+    with pytest.raises(PowerBIError, match="symbolic link"):
+        generate.write_project(out)
+    assert outside.read_text(encoding="utf-8") == "keep"
+
+
+def test_writing_removes_a_chain_of_stale_folders(tmp_path) -> None:
+    generate.write_project(tmp_path)
+    nested = tmp_path / generate.DEFINITION / "a" / "b"
+    nested.mkdir(parents=True)
+    (nested / "old.tmdl").write_text("x", encoding="utf-8")
+    generate.write_project(tmp_path)
+    assert not (tmp_path / generate.DEFINITION / "a").exists()
+    assert (tmp_path / generate.DEFINITION / "tables").is_dir()

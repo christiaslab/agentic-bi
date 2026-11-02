@@ -265,19 +265,20 @@ def project_files(
 def write_project(out: Path | str) -> list[str]:
     """Write the project into ``out``; remove files under definition/ it did not write.
 
-    Returns the relative paths removed. The output folder and ``definition/`` must not be
-    symbolic links, so a removal never leaves the folder it was meant for.
+    Returns the relative paths removed. No folder or file between ``out`` and a path it
+    writes or removes may be a symbolic link, so a write or a removal never leaves ``out``.
+    A symbolic link inside ``definition/`` is removed as a link; its target is not touched.
     """
     target = Path(out)
     files = project_files()
     definition = target / DEFINITION
-    for folder in (target, definition):
-        if folder.is_symlink():
-            raise PowerBIError(f"{folder} is a symbolic link; refusing to write through it")
+    _refuse_links(target, definition)
     removed = []
     if definition.exists():
-        for dirpath, _dirnames, filenames in os.walk(definition, followlinks=False):
-            for filename in filenames:
+        for dirpath, dirnames, filenames in os.walk(definition, followlinks=False):
+            # a linked folder is listed with the folders but never entered
+            entries = filenames + [name for name in dirnames if (Path(dirpath) / name).is_symlink()]
+            for filename in entries:
                 path = Path(dirpath) / filename
                 relative = PurePosixPath(path.relative_to(target).as_posix())
                 if str(relative) not in files:
@@ -285,12 +286,27 @@ def write_project(out: Path | str) -> list[str]:
                     removed.append(str(relative))
     for relative, content in files.items():
         path = target / relative
+        _refuse_links(target, path)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
-    for dirpath, dirnames, filenames in sorted(os.walk(definition), reverse=True):
-        if not dirnames and not filenames:
-            Path(dirpath).rmdir()
+    if definition.exists():
+        # bottom-up, so a chain of emptied folders goes in one pass
+        for dirpath, _dirnames, _filenames in os.walk(definition, topdown=False):
+            folder = Path(dirpath)
+            if folder != definition and not any(folder.iterdir()):
+                folder.rmdir()
     return sorted(removed)
+
+
+def _refuse_links(target: Path, path: Path) -> None:
+    """Raise when ``target`` or any part of ``path`` below it is a symbolic link."""
+    relative = path.relative_to(target)
+    current = target
+    for part in (None, *relative.parts):
+        if part is not None:
+            current = current / part
+        if current.is_symlink():
+            raise PowerBIError(f"{current} is a symbolic link; refusing to write through it")
 
 
 def main(argv: list[str] | None = None) -> int:
