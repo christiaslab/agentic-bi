@@ -89,6 +89,7 @@ def ask(
                     question=question,
                     coverage=COVERAGE_DATES,
                     top_n=run.top_n(),
+                    names=run.names,
                 )
             except FinalReplyRejected as problem:
                 run.event("final_reply", accepted=False, problem=str(problem))
@@ -145,6 +146,7 @@ class _Run:
         self.rejected_replies = 0
         self.runs: list[QueryRun] = []
         self.refusals: list[dict[str, str]] = []
+        self.names: set[str] = set()
         self.usage: dict[str, int] = {}
         self.events: list[dict[str, Any]] = [{"event": "question", "text": question}]
         self.transcript: dict[str, Any] = {
@@ -175,6 +177,9 @@ class _Run:
             self.runs.append(outcome.run)
         if outcome.refusal is not None:
             self.refusals.append(outcome.refusal)
+        if outcome.name == "schema" and not outcome.is_error:
+            for item in outcome.payload["values"]:
+                self.names.update(str(text) for text in item.values() if text is not None)
         self.event(
             "tool_call",
             id=block["id"],
