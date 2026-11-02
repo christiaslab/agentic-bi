@@ -6,6 +6,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic==2.3.0",
     "duckdb==1.5.6",
     "pyyaml==6.0.3",
     "sqlmesh==0.236.4",
