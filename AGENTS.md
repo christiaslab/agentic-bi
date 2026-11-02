@@ -40,6 +40,8 @@ Do not weaken a test or a check to make it pass; report the conflict instead.
 - Network: package installs and the USAspending hosts (`api.usaspending.gov`, `files.usaspending.gov`) only.
 - Work on a branch named after the brief's `task_id`, created from `main`. Commit in small steps and push the branch (`git push -u origin <task_id>`) after each sound step, so nothing is lost if the session stops.
 - Never wait for input. When blocked (network refused, unclear rule, a check you cannot satisfy), commit what is sound, write the `Blocked` section of your report, push the branch, and stop.
+- Work in depth. There is no token or time budget to save. Plan first; use subagents for reading, for independent parts and for second opinions. When the done list is met, deepen inside the owned paths (edge cases, failure tests, clearer docs); never widen the scope.
+- Before the final push, have a subagent that did not write the code review the whole diff against the brief's `done_means` and the Code Review Rules below, from the diff and the brief only. Fix each finding or list it in the report with the reason it stays.
 - Close by committing your report as `tasks/reports/<task_id>.md` (outcome, verification output, the figures the brief asks for, open questions) and pushing the branch. The owner opens the pull request from the pushed branch. Never push `main`, never merge.
 
 ## Code Review Rules

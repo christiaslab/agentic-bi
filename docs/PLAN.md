@@ -1,6 +1,6 @@
 # Plan
 
-Status: working plan, 2026-11-01. One increment per session, one pull request per increment. Nothing past S6 starts before S6 closes.
+Status: working plan, 2026-11-01, revised 2026-11-02 (S3c added by ADR-0004; S3b, S4 and S5a widened). One increment per session, one pull request per increment. Nothing past S6 starts before S6 closes.
 
 ## Architecture
 
@@ -25,15 +25,16 @@ publisher aggregate endpoints (same day) -> docs/golden/
 | S1 | Fetch script (snapshot plus manifest) and golden script (30 to 50 values, tagged) | Row count and contract obligations equal the publisher's totals of the same day, to the cent; both scripts rerun cleanly; CI uses recorded fixtures, no network |
 | S2 | SQLMesh project: the tables of `docs/contracts/star-schema.md`, audits, the competition seed. Time-boxed to one session; otherwise dbt-duckdb, recorded in an ADR | `sqlmesh plan` clean; row count and three golden totals match S1 |
 | S3a | Metrics catalog (obligations, award count, average award value, supplier concentration, competition rate) and compiler, with unit tests on a synthetic fixture | Every metric compiles; out-of-catalog input is refused; filter values are bound parameters |
-| S3b | Golden reproduction through the compiled SQL on the S2 models | Five golden values reproduced, at least one `derived` |
-| S4 | Analyst agent with the four tools; every answer carries the structured query, the SQL and the numbers | Ten manual questions answered with traceable SQL; an out-of-catalog question refused |
-| S5a | Verifier | Intent checks on the S4 questions |
+| S3b | Golden reproduction through the compiled SQL on the S2 models | Every golden value the catalog can express is reproduced, at least 30 and five `derived`; the rest listed with the reason |
+| S3c | Power BI semantic model (PBIP, TMDL) generated from the catalog, over the contract tables exported to Parquet (ADR-0004) | The generator's output is in sync with the catalog in CI; the owner reproduces five golden values in Power BI Desktop, at least one `derived` |
+| S4 | Analyst agent with the four tools; every answer carries the structured query, the SQL and the numbers; `order_by` and `limit` in the structured query | Ten questions answered with traceable SQL, offline by replay and live by the owner; an out-of-catalog question refused |
+| S5a | Verifier and the eval question set | Deterministic and model intent checks, proven by replay; 40 to 60 questions with expected queries, refusals and golden links |
 | S5b | Eval harness and CI | Compiler golden tests on every PR with no key; the LLM eval on manual or scheduled runs only, with a pinned model and a spend cap |
 | S6 | README, phase close | Status recorded; the repository presentable |
 
 ## Phase two (not before S6 closes)
 
-Scheduled insights loop (USAspending updates monthly), MCP server, a Power BI path, model lint, a second dataset.
+Scheduled insights loop (USAspending updates monthly), MCP server, publishing to the Power BI service, model lint, a second dataset.
 
 ## Risks
 

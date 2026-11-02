@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "task_id": "s5a-verifier-and-question-set",
+  "goal": "Build the verifier of ADR-0002 point 8, which judges whether a structured query answers a natural-language question as the catalog defines it, and the eval question set it will be measured on: 40 to 60 questions with their expected structured query, expected outcome and, where one exists, the golden value they should reproduce. Proven offline through a judge interface and replayed verdicts.",
+  "read_first": [
+    "AGENTS.md",
+    "docs/PLAN.md, rows S5a and S5b",
+    "docs/decisions/0002-structured-query-and-compiler.md",
+    "catalog/metrics.yaml, docs/catalog.md and src/agentic_bi/semantic/query.py",
+    "docs/golden/golden.json",
+    "tasks/reports/s3a-catalog-and-compiler.md, the open questions"
+  ],
+  "owned_paths": [
+    "src/agentic_bi/verifier/",
+    "tests/verifier/",
+    "evals/questions.yaml",
+    "evals/README.md",
+    "docs/decisions/0006-verifier-and-eval-set.md",
+    "docs/verifier.md",
+    "tasks/reports/s5a-verifier-and-question-set.md"
+  ],
+  "out_of_scope": [
+    "pyproject.toml and uv.lock: the S4 session adds the model client tonight; the verifier calls a model only through a Judge protocol, and the live adapter is wired in S5b",
+    "src/agentic_bi/semantic/, catalog/metrics.yaml and evals/golden_queries.yaml (S3b)",
+    "the analyst agent (S4), CI and the scored eval run (S5b)",
+    "an API key anywhere; any network call except package installs"
+  ],
+  "done_means": [
+    "ADR-0006 records the verifier's contract: input (question, structured query, catalog excerpt), output verdict (consistent, inconsistent or refuse_expected, with typed issue codes such as wrong_metric, missing_filter, wrong_grain, wrong_time_range, wrong_dimension, should_refuse), the default model (claude-haiku-5-5 unless argued otherwise), and that it judges intent, never SQL",
+    "deterministic checks run before any model call and catch what needs no model: query fails the schema, metric or dimension outside the catalog, time range outside the slice; tests for each",
+    "the prompt is a versioned file in src/agentic_bi/verifier/; the model's verdict is parsed against a JSON schema and a malformed verdict is an error, not a pass",
+    "evals/questions.yaml holds 40 to 60 questions: every metric, every grain, every dimension at least once, at least ten top-N questions that use order_by and limit (marked requires: top_n, since that arrives with S4), at least eight out-of-catalog or ambiguous questions with the expected refusal, at least five paraphrase pairs, and a golden_id wherever a golden value answers the question; every expected query that does not need top_n passes the current schema and compiles, tested",
+    "a replay judge returns recorded verdicts; tests cover a correct query, each issue code on a deliberately wrong query, and a refusal; replays are written by hand and marked as such",
+    "uv run python -m agentic_bi.verifier check --question <text> --query <json> prints the deterministic verdict without a key and the model verdict with one",
+    "evals/README.md explains the fields of the question set, how golden_id links to docs/golden/golden.json, and how S5b will score intent accuracy and refusal behaviour",
+    "uv run ruff check . && uv run ruff format --check . && uv run pytest -q && python3 scripts/commit_hygiene.py"
+  ],
+  "stop_and_report_when": [
+    "a question the set needs cannot be expressed in the catalog: keep it as an expected refusal or list it as a catalog candidate, never add metrics",
+    "a new dependency seems necessary"
+  ],
+  "hand_back": "The branch s5a-verifier-and-question-set, pushed to origin and never merged, with the report committed as tasks/reports/s5a-verifier-and-question-set.md: outcome, the verification output, the question set's coverage table (metric, grain, dimension, refusal, top-N, golden-linked), the issue codes and the open points for S5b. The owner opens the pull request from the pushed branch.",
+  "note": "Plan row S5a, widened on 2026-11-02 (owner ruling) to carry the eval question set. Serves ADR-0002 points 3 and 8. Starts after S3a (PR 2) is merged; independent of S4 except the top_n questions, which S5b enables. No key in the cloud: the live verifier run waits for S5b."
+}

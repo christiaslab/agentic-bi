@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "task_id": "s4-analyst-agent",
+  "goal": "Build the analyst agent of ADR-0002: a model that answers spending questions only through four project tools (catalog, schema, run_query, explain_measure), never writes SQL, and returns every answer with its structured query, the compiled SQL and the numbers. Add ordering and a row limit to the structured query so that top-N questions can be asked. Everything is proven offline, with no API key, by replaying recorded model turns.",
+  "read_first": [
+    "AGENTS.md",
+    "docs/PLAN.md, row S4",
+    "docs/decisions/0002-structured-query-and-compiler.md, above all points 5 to 9",
+    "docs/contracts/star-schema.md",
+    "catalog/metrics.yaml, docs/catalog.md and src/agentic_bi/semantic/",
+    "tasks/reports/s3a-catalog-and-compiler.md, the DuckDB finding and the open questions"
+  ],
+  "owned_paths": [
+    "src/agentic_bi/agent/",
+    "tests/agent/",
+    "src/agentic_bi/semantic/query.py and src/agentic_bi/semantic/compiler.py, for order_by and limit only",
+    "tests/semantic/, for order_by and limit only",
+    "docs/catalog.md, the structured query section only",
+    "docs/decisions/0005-analyst-agent-runtime.md",
+    "docs/decisions/0002-structured-query-and-compiler.md, an Amendment section at the end only",
+    "docs/agent.md",
+    "pyproject.toml, to add one model client library only",
+    "uv.lock",
+    "tasks/reports/s4-analyst-agent.md"
+  ],
+  "out_of_scope": [
+    "any raw SQL input to any tool, and any built-in tool (shell, file, web) given to the agent",
+    "catalog/metrics.yaml, warehouse/, docs/golden/ and the contract",
+    "the verifier and the eval question set (S5a), CI changes and the LLM eval (S5b)",
+    "an API key in the repository, the environment or a test; any network call except package installs"
+  ],
+  "done_means": [
+    "ADR-0005 chooses the runtime, the Claude Agent SDK or the Anthropic Messages API with a tool runner, records why, pins the library to one exact version with its PyPI source, and names the default model (claude-sonnet-5-5 unless the ADR argues otherwise); the model id is a setting, not a constant in prompts",
+    "ADR-0002 gets an Amendment: optional order_by (the metric value or a requested dimension, asc or desc) and limit (1 to 100); the JSON schema, the parser and the compiler support both; limit is bound as a parameter; tests cover top 5 recipients by obligations, a bad order_by field and limit out of range",
+    "the four tools are plain Python functions with tests: catalog lists metrics, dimensions and grains with descriptions; schema returns the allowed values of one dimension with labels where the contract has them (names from dim_reporting_recipient, dim_psc, dim_naics, dim_sub_agency, dim_competition); run_query accepts only a structured query and returns rows, the SQL and the parameters; explain_measure returns a metric's plain-language rule",
+    "the agent returns a typed answer: question, structured queries run, SQL, parameters, rows, a short text answer whose every figure appears in the rows, or a refusal naming the catalog reason",
+    "tool results reach the model as data inside a clear delimiter; a test feeds a recipient name holding an instruction and shows nothing changes",
+    "offline replay: recorded model turns under tests/agent/replays/ drive the real tool layer on a warehouse built from the committed snapshot; at least ten questions (one per metric, a fiscal-month trend, a top-5 by recipient, a filter by state, a two-step question) answer with figures equal to docs/golden/golden.json where a golden value exists, and two out-of-catalog questions are refused; replays are written by hand from the tool schema and marked as such, never presented as real model output",
+    "uv run python -m agentic_bi.agent ask \"<question>\" runs live when ANTHROPIC_API_KEY is set and stops with a clear message when it is not; uv run python -m agentic_bi.agent session --questions <file> --out <dir> runs a list and writes one transcript per question, for the owner to run with their own key",
+    "docs/agent.md explains the loop, the tools, the answer shape, the refusal rules, how to run live and what the owner should check in the transcripts",
+    "uv run ruff check . && uv run ruff format --check . && uv run pytest -q && python3 scripts/commit_hygiene.py"
+  ],
+  "stop_and_report_when": [
+    "the chosen library cannot be installed, or cannot be tested without a key: record it in ADR-0005 and fall back to the other option",
+    "a question the plan needs cannot be expressed even with order_by and limit: report it as a catalog candidate, do not add metrics",
+    "a second new dependency seems necessary"
+  ],
+  "hand_back": "The branch s4-analyst-agent, pushed to origin and never merged, with the report committed as tasks/reports/s4-analyst-agent.md: outcome, the verification output, the library and version, the ten replayed questions with their answers and golden comparison, the refusals, and the exact commands the owner runs live in the morning. The owner opens the pull request from the pushed branch.",
+  "note": "Plan row S4. Serves ADR-0002; owner rulings of 2026-11-02: no key in the cloud, top-N through order_by and limit. Starts after S2 (PR 4) and S3a (PR 2) are merged into main. The S4 session is the only one that edits src/agentic_bi/semantic/ tonight. The live run of ten manual questions is the owner's step and closes the row."
+}
