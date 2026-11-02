@@ -136,8 +136,9 @@ def test_a_hostile_tool_name_or_id_never_renders_as_markdown(synthetic_toolbox) 
     result = ask("Net obligations?", model=ReplayModel(turns), toolbox=synthetic_toolbox)
     assert result.answer.status == "answered"
     for line in _outside_fences(render_markdown(result.transcript)):
-        assert "example.invalid" not in line or "\\[" in line or "\\!" in line, line
-        assert re.search(r"(?<!\\)!\[|(?<!\\)\]\(", line) is None, line
+        # model text on a Markdown line sits in a code span, where nothing is a link
+        outside_spans = re.sub(r"(`+) .*? \1", "", line)
+        assert "example.invalid" not in outside_spans, line
 
 
 def test_an_unpaired_surrogate_never_stops_a_transcript_or_the_terminal(

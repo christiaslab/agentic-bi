@@ -433,10 +433,12 @@ def test_the_code_of_a_refusal_does_not_change_what_its_reason_may_say() -> None
 # --- checking: the settings reach the evidence ------------------------------------------------
 
 
-def test_the_question_grounds_a_plain_whole_number_of_the_answer() -> None:
-    reply = answered("Of the top 3 you asked about, the first held $1.70 billion.")
-    assert check(reply, TOTAL_FY, question="Who were the top 3 recipients?") is None
-    assert "3" in str(check_problem(reply, TOTAL_FY, question="Who were the top recipients?"))
+def test_the_question_grounds_a_year_of_the_answer_and_no_other_number() -> None:
+    reply = answered("In fiscal year 2023 there is nothing; fiscal year 2025 held $1.70 billion.")
+    assert check(reply, TOTAL_FY, question="What about fiscal year 2023?") is None
+    assert "2023" in str(check_problem(reply, TOTAL_FY, question="What about last year?"))
+    count = answered("Yes, the top 3 held $1.70 billion.")
+    assert "3" in str(check_problem(count, TOTAL_FY, question="Did the top 3 hold it all?"))
 
 
 def test_an_amount_of_the_question_is_not_grounded_by_the_question() -> None:
