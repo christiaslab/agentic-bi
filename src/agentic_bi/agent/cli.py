@@ -105,7 +105,7 @@ def main(
 
 def read_questions(path: Path) -> list[str]:
     """One question per line; blank lines and lines starting with # are skipped."""
-    lines = path.read_text(encoding="utf-8").splitlines()
+    lines = path.read_text(encoding="utf-8-sig").splitlines()  # a byte order mark is dropped
     questions = [
         line.strip() for line in lines if line.strip() and not line.lstrip().startswith("#")
     ]

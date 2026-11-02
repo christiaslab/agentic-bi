@@ -983,9 +983,17 @@ def test_max_rows_must_be_an_integer_from_1_to_10000(value: Any) -> None:
         AgentSettings(max_rows=value)
 
 
-@pytest.mark.parametrize("value", [0, 0.0, -1, -1.5], ids=repr)
+@pytest.mark.parametrize(
+    "value", [0, 0.0, -1, -1.5, float("nan"), float("inf"), float("-inf")], ids=repr
+)
 def test_the_timeout_must_be_positive(value: float) -> None:
     with pytest.raises(ValueError, match="timeout_seconds must be positive"):
+        AgentSettings(timeout_seconds=value)
+
+
+@pytest.mark.parametrize("value", ["5", None, True, [5]], ids=repr)
+def test_the_timeout_must_be_a_number(value: Any) -> None:
+    with pytest.raises(ValueError, match="timeout_seconds must be a number of seconds"):
         AgentSettings(timeout_seconds=value)
 
 
@@ -1023,3 +1031,11 @@ def test_settings_to_dict_lists_every_field_for_the_transcript() -> None:
     assert list(data) == names
     assert data == {name: getattr(CUSTOM, name) for name in names}
     assert json.loads(json.dumps(data)) == data
+
+
+def test_replay_is_not_exhausted_by_a_request_that_failed_its_check() -> None:
+    replay = ReplayModel([text_turn()])
+    two_messages = [user("q"), assistant([{"type": "text", "text": "x"}])]
+    with pytest.raises(ReplayError):
+        replay.create(system="s", messages=two_messages, tools=[], settings=SETTINGS)
+    assert not replay.exhausted

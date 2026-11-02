@@ -1303,9 +1303,6 @@ INPUT_ERRORS = [
     pytest.param(
         "schema", {"dimension": "recipient", "limit": 1.5}, "limit", id="schema-limit-float"
     ),
-    pytest.param(
-        "schema", {"dimension": "recipient", "limit": None}, "limit", id="schema-limit-null"
-    ),
     pytest.param("explain_measure", {}, "metric", id="explain-without-a-metric"),
     pytest.param(
         "explain_measure", {"metric": "obligations", "unit": "usd"}, "unit", id="explain-extra-key"
@@ -1568,3 +1565,25 @@ def test_the_result_text_is_valid_utf8_for_a_lone_surrogate_in_an_input_name(
     synthetic_toolbox, tool: str, arguments: Any
 ) -> None:
     synthetic_toolbox.call(tool, arguments).content.encode("utf-8")
+
+
+def test_a_null_limit_means_the_default_like_a_null_search_or_codes(synthetic_toolbox) -> None:
+    outcome = synthetic_toolbox.call(
+        "schema", {"dimension": "recipient", "limit": None, "search": None, "codes": None}
+    )
+    assert not outcome.is_error
+    assert outcome.payload["returned"] == min(
+        tools.SCHEMA_DEFAULT_LIMIT, outcome.payload["matching"]
+    )
+
+
+def test_codes_of_a_boolean_dimension_are_written_true_and_false(synthetic_conn) -> None:
+    payload = tools.schema(synthetic_conn, "competed", codes=["true", "maybe"])
+    assert payload["values"] == [{"value": True}]
+    assert payload["not_found"] == ["maybe"]
+
+
+@pytest.mark.parametrize("limit", [0, 201, True, "5"])
+def test_the_plain_schema_function_checks_its_limit_too(synthetic_conn, limit) -> None:
+    with pytest.raises(ValueError):
+        tools.schema(synthetic_conn, "recipient", limit=limit)

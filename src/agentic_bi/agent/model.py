@@ -185,10 +185,12 @@ class ReplayModel:
         self.model = model
         self.provenance = provenance
         self.requests: list[dict[str, Any]] = []
+        self._served = 0
 
     @property
     def exhausted(self) -> bool:
-        return len(self.requests) == len(self._turns)
+        """Every turn was handed out, each after its request passed the check."""
+        return self._served == len(self._turns)
 
     def create(
         self,
@@ -208,6 +210,7 @@ class ReplayModel:
         )
         self._check_conversation(index, messages)
         turn = self._turns[index]
+        self._served += 1
         return ModelTurn(
             content=content_blocks(copy.deepcopy(turn["content"])),
             stop_reason=turn["stop_reason"],
