@@ -20,6 +20,7 @@ This project is different in the ways that matter: it is a new repository with n
    - the owner merges, by rebase or by a squash whose message is clean.
 4. **The project stays parked for daytime work** until its re-evaluation (not before 2026-11-29). Until then it advances only through cloud night shifts; the owner's daytime share is reviewing their pull requests.
 5. **Revisit** the full kit after S6, or when PAES rules on cloud builders for itself, whichever comes first.
+6. **Visibility.** The repository goes public once S1 is reviewed and merged (owner ruling, 2026-11-01), not at S6. From then on a GitHub ruleset on `main` blocks deletion and force-pushes and requires a pull request with the `verify` check, and Auto-fix stays off, since anyone can comment on a public pull request.
 
 ## Consequences
 

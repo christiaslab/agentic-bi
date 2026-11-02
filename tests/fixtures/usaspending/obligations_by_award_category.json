@@ -1,0 +1,29 @@
+{
+  "total_aggregated_amount": 27274081402.7,
+  "results": [
+    {
+      "category": "contracts",
+      "aggregated_amount": 1697318332.65
+    },
+    {
+      "category": "direct_payments",
+      "aggregated_amount": -10998497.99
+    },
+    {
+      "category": "grants",
+      "aggregated_amount": 25557912350.0
+    },
+    {
+      "category": "idvs",
+      "aggregated_amount": 16178133.06
+    },
+    {
+      "category": "loans",
+      "aggregated_amount": 13671084.98
+    },
+    {
+      "category": "other",
+      "aggregated_amount": 0
+    }
+  ]
+}

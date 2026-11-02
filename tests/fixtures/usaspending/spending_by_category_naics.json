@@ -1,0 +1,58 @@
+{
+  "category": "naics",
+  "spending_level": "transactions",
+  "limit": 5,
+  "page_metadata": {
+    "page": 1,
+    "next": 2,
+    "previous": null,
+    "hasNext": true,
+    "hasPrevious": false
+  },
+  "results": [
+    {
+      "id": null,
+      "code": "562910",
+      "name": "Remediation Services",
+      "amount": 768867751.92,
+      "total_outlays": null,
+      "year_retired": null
+    },
+    {
+      "id": null,
+      "code": "541620",
+      "name": "Environmental Consulting Services",
+      "amount": 349784383.93,
+      "total_outlays": null,
+      "year_retired": null
+    },
+    {
+      "id": null,
+      "code": "541611",
+      "name": "Administrative Management and General Management Consulting Services",
+      "amount": 103690261.13,
+      "total_outlays": null,
+      "year_retired": null
+    },
+    {
+      "id": null,
+      "code": "541512",
+      "name": "Computer Systems Design Services",
+      "amount": 58608033.31,
+      "total_outlays": null,
+      "year_retired": null
+    },
+    {
+      "id": null,
+      "code": "541715",
+      "name": "Research and Development in the Physical, Engineering, and Life Sciences (except Nanotechnology and Biotechnology)",
+      "amount": 52849733.2,
+      "total_outlays": null,
+      "year_retired": null
+    }
+  ],
+  "messages": [
+    "For searches, time period start and end dates are currently limited to an earliest date of 2007-10-01.  For data going back to 2000-10-01, use either the Custom Award Download feature on the website or one of our download or bulk_download API endpoints as listed on https://api.usaspending.gov/docs/endpoints. ",
+    "'subawards' will be deprecated in the future. Set \u2018spending_level\u2019 to \u2018subawards\u2019 instead. See documentation for more information. "
+  ]
+}
