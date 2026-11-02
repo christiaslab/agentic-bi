@@ -65,6 +65,11 @@ The DAX is in [catalog/dax.yaml](../catalog/dax.yaml), with a longer comment per
 
 One difference in form, not in value: on an empty selection `award_count` is BLANK in Power BI, where the compiler's total query returns 0. Grouped results agree, since neither shows an empty group.
 
+Two differences in what can be asked:
+
+- **Refused filters.** The compiler refuses some groupings, such as `supplier_concentration_top10` by recipient or `competition_rate` by `competed`, because the answer is always 1, or 0 or 1. Power BI has no such refusal: a report can slice these measures that way and shows those trivial values.
+- **Text comparison.** Power BI compares text without regard to case, and joins keys without trailing spaces; DuckDB does neither. Keys that differ only that way would merge in Power BI. None does in the committed data, and a test checks every text key of `data/model/`.
+
 ## Open the project in Power BI Desktop
 
 Power BI Desktop runs on Windows only. These steps are the owner's.
@@ -76,7 +81,14 @@ Power BI Desktop runs on Windows only. These steps are the owner's.
 5. Check the model view: eight tables, seven relationships from `fct_contract_transaction`, `dim_date` marked as the date table (**Table tools**, **Mark as date table**).
 6. Fill the check table below.
 
-If Desktop refuses to open the project because the report folder holds only `definition.pbir` (ADR-0004, consequences): close Desktop, open a blank report, save it as a Power BI project (`.pbip`) named `AgenticBI` in the `powerbi` folder, replacing the files there, and close Desktop. Then run `uv run python -m agentic_bi.powerbi.generate --out powerbi` again: it rewrites the model and the pointers and keeps the report Desktop saved. Open `AgenticBI.pbip` again and continue at step 3. Record in the pull request that this fallback was needed; the generator then stops writing the report folder in a later session.
+If Desktop refuses to open the project because the report folder holds only `definition.pbir` (ADR-0004, consequences):
+
+1. Close Desktop. Open a blank report and save it as a Power BI project (`.pbip`) named `AgenticBI` in a scratch folder outside the clone, for example `C:\scratch`. Close Desktop.
+2. Copy the contents of `C:\scratch\AgenticBI.Report` into the clone's `powerbi\AgenticBI.Report`. Copy nothing else: the scratch `AgenticBI.SemanticModel` is an empty model and may be held as `model.bim`, which must not land next to the generated TMDL.
+3. Run `uv run python -m agentic_bi.powerbi.generate --out powerbi` again. It rewrites `definition.pbir` and keeps the report files Desktop saved.
+4. Open `powerbi\AgenticBI.pbip` again and continue at step 3 above.
+
+Record in the pull request that this fallback was needed; the generator then stops writing the report folder in a later session.
 
 ### What Desktop changes, and what to commit
 
@@ -90,7 +102,7 @@ Then commit only report work (pages, visuals) under `AgenticBI.Report/`. A chang
 
 ## Desktop check of the golden values
 
-Each value must equal [docs/golden/golden.json](golden/golden.json) to the cent, or to the sixth decimal place for a share (ADR-0004 point 4). Use a card or a table visual with the measure and the filter shown. The golden value column is copied from `golden.json`, and a test keeps it so.
+Each value must equal [docs/golden/golden.json](golden/golden.json) to the cent, or to the sixth decimal place for a share (ADR-0004 point 4). Use a table visual with the measure and the filter shown: a card shows large amounts in display units such as "1.70bn" unless its display units are set to None. The golden value column is copied from `golden.json`, and a test keeps it so.
 
 | # | Golden id | Tag | Measure | Filter in Desktop | Golden value | Desktop value |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -104,4 +116,4 @@ Notes for the check:
 
 - Row 3 filters the recipient's own UEI through `dim_recipient`, as the publisher ranks recipients. The catalog's `recipient` dimension is the reporting parent (`dim_reporting_recipient`), which can hold a different amount.
 - Row 4 is shown with two decimal places; the full value is 1,697,318,332.65 / 6,016 awards.
-- The same five values are computed by a test from the committed Parquet files through the compiler, so a difference in Desktop points at the DAX or the model, not the data.
+- A test computes the same five values from the committed Parquet files, rows 1, 2, 4 and 5 through the compiler and row 3 by a plain sum over `recipient_uei` (the catalog has no dimension for a recipient's own UEI). A difference in Desktop therefore points at the DAX or the model, not the data.
