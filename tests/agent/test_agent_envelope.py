@@ -51,9 +51,12 @@ TEXTS = [
     pytest.param("\\<", id="backslash-before-a-bracket"),
     pytest.param("\\u003c is only text here", id="backslash-u-sequence"),
     pytest.param("Synthétique Trois", id="accented"),
-    pytest.param("日本語 \U0001f600", id="non-latin-and-emoji"),
+    pytest.param("\u65e5\u672c\u8a9e \U0001f600", id="non-latin-and-emoji"),
     pytest.param("tab\tcarriage\rnul\x00bell\x07", id="control-characters"),
-    pytest.param("line separator ", id="unicode-line-separators"),
+    pytest.param("line\u2028separator\u2029", id="unicode-line-separators"),
+    pytest.param("a" + chr(0xD800) + "b", id="unpaired-high-surrogate"),
+    pytest.param("a" + chr(0xDC00) + "b", id="unpaired-low-surrogate"),
+    pytest.param("\\ud800 is only text here", id="backslash-surrogate-sequence"),
     pytest.param("", id="empty"),
 ]
 
@@ -156,6 +159,28 @@ def test_dumps_writes_the_three_characters_as_json_unicode_escapes() -> None:
 def test_dumps_is_one_line_even_when_the_text_has_line_breaks() -> None:
     result = dumps({"a": "one\ntwo\r\nthree", "b": [1, 2]})
     assert "\n" not in result and "\r" not in result
+
+
+@pytest.mark.parametrize("shape", list(SHAPES))
+@pytest.mark.parametrize("text", TEXTS)
+def test_dumps_and_wrap_write_text_that_is_valid_utf8(text: str, shape: str) -> None:
+    payload = SHAPES[shape](text)
+    dumps(payload).encode("utf-8")
+    wrap("schema", payload).encode("utf-8")
+
+
+def test_dumps_writes_an_unpaired_surrogate_as_its_json_escape() -> None:
+    high, low = chr(0xD800), chr(0xDC00)
+    assert dumps("a" + high + "b") == '"a\\ud800b"'
+    assert dumps(low) == '"\\udc00"'
+    assert json.loads(dumps("a" + high + "b")) == "a" + high + "b"
+    assert json.loads(dumps({high: [low]})) == {high: [low]}
+
+
+def test_dumps_keeps_text_that_only_looks_like_a_surrogate_escape_as_text() -> None:
+    looks_like_one = "\\" + "ud800"
+    assert dumps(looks_like_one) == '"\\\\ud800"'
+    assert json.loads(dumps(looks_like_one)) == looks_like_one
 
 
 def test_dumps_applies_json_safe_to_its_payload() -> None:

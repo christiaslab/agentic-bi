@@ -11,6 +11,7 @@ import datetime as dt
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -122,30 +123,19 @@ class Failing:
         raise self.error
 
 
-class OnePerQuestion:
-    """Serves a session: each question has its own ``ReplayModel`` (or the error it raises).
-
-    One ``ReplayModel`` counts its turns across questions, so it cannot serve a second question;
-    this stand-in starts the next replay whenever the loop opens a conversation, which is a request
-    that holds the question alone. Every conversation is still checked by a real ``ReplayModel``.
-    """
+class FailsAfter:
+    """Serves a replay, then raises ``error`` on the first call once the replay is used up."""
 
     provenance = REPLAY_PROVENANCE
 
-    def __init__(self, *per_question: list[dict[str, Any]] | ModelError) -> None:
-        self.handlers = [
-            handler if isinstance(handler, ModelError) else ReplayModel(handler)
-            for handler in per_question
-        ]
-        self.current = -1
+    def __init__(self, replay: ReplayModel, error: ModelError) -> None:
+        self.replay = replay
+        self.error = error
 
-    def create(self, *, messages: list[dict[str, Any]], **given: Any) -> Any:
-        if len(messages) == 1:
-            self.current += 1
-        handler = self.handlers[self.current]
-        if isinstance(handler, ModelError):
-            raise handler
-        return handler.create(messages=messages, **given)
+    def create(self, **given: Any) -> Any:
+        if self.replay.exhausted:
+            raise self.error
+        return self.replay.create(**given)
 
 
 # --- running main -----------------------------------------------------------------------------
@@ -186,6 +176,12 @@ def read_json(path: Path) -> Any:
 
 def snapshot(directory: Path) -> dict[str, bytes]:
     return {path.name: path.read_bytes() for path in sorted(directory.iterdir())}
+
+
+def everything_written(run: Run, out: Path) -> str:
+    """All the text a run produced: its two streams and every file in --out."""
+    files = "".join(path.read_text(encoding="utf-8") for path in sorted(out.iterdir()))
+    return run.stdout + run.stderr + files
 
 
 # --- no key: stop before anything else --------------------------------------------------------
@@ -257,10 +253,19 @@ def test_the_key_is_checked_before_the_questions_file_is_read(tmp_path: Path) ->
     assert run.code == 2 and run.stderr == NO_KEY + "\n"
 
 
-def test_the_default_streams_are_the_process_streams(capsys: pytest.CaptureFixture[str]) -> None:
+def test_the_default_streams_are_the_process_streams(
+    capsys: pytest.CaptureFixture[str], synthetic_db: Path
+) -> None:
     assert main(["ask", QUESTION], environ={}) == 2
     captured = capsys.readouterr()
     assert captured.err == NO_KEY + "\n" and captured.out == ""
+    factory = Serving(ReplayModel(OBLIGATIONS))
+    code = main(
+        ["ask", QUESTION, "--database", str(synthetic_db)], environ={}, model_factory=factory
+    )
+    captured = capsys.readouterr()
+    assert code == 0 and captured.err == ""
+    assert captured.out.startswith(f"Question: {QUESTION}\nAnswer: {OBLIGATIONS_TEXT}\n")
 
 
 @pytest.mark.parametrize("command", ["ask", "session"])
@@ -471,7 +476,7 @@ def test_ask_prints_the_answer_the_sql_and_the_parameters(synthetic_db: Path) ->
     assert replay.exhausted
     compiled = compile_query({"metric": "obligations"})
     sql = "\n".join(f"    {line}" for line in compiled.sql.splitlines())
-    assert run.stdout.startswith(f"Question: {QUESTION}\nAnswer: Net obligations were $3,600.00.\n")
+    assert run.stdout.startswith(f"Question: {QUESTION}\nAnswer: {OBLIGATIONS_TEXT}\n")
     assert f"SQL:\n{sql}\n" in run.stdout
     assert "Parameters: []\n" in run.stdout
     assert 'Rows (1): obligations\n    ["3600.00"]\n' in run.stdout
@@ -563,6 +568,30 @@ def test_ask_names_the_transcript_after_the_numbered_slug_of_the_question(
     assert sorted(path.name for path in out.iterdir()) == [f"{stem}.json", f"{stem}.md"]
 
 
+@pytest.mark.parametrize(
+    "question",
+    ["../../escape", "/etc/passwd", "..\\..\\windows\\system32", "a/../../b", "x\x00y"],
+    ids=["dot-dot", "absolute", "backslashes", "inner-dot-dot", "nul"],
+)
+def test_a_question_cannot_move_a_transcript_out_of_the_out_directory(
+    tmp_path: Path, synthetic_db: Path, question: str
+) -> None:
+    out = tmp_path / "deep" / "transcripts"
+    run = run_main(
+        "ask",
+        question,
+        "--database",
+        str(synthetic_db),
+        "--out",
+        str(out),
+        model_factory=Serving(ReplayModel(REFUSAL)),
+    )
+    assert run.code == 0
+    written = [path.relative_to(tmp_path).parts for path in tmp_path.rglob("*") if path.is_file()]
+    assert len(written) == 2
+    assert all(parts[:2] == ("deep", "transcripts") and len(parts) == 3 for parts in written)
+
+
 def test_a_failed_run_returns_one_and_still_writes_its_transcript(
     tmp_path: Path, synthetic_db: Path
 ) -> None:
@@ -598,6 +627,17 @@ def test_a_refusal_returns_zero_and_shows_its_code(synthetic_db: Path) -> None:
     assert run.code == 0
     reason = "The warehouse holds one agency and one fiscal year only."
     assert f"Refused (outside_coverage): {reason}\n" in run.stdout
+
+
+def test_ask_escapes_terminal_control_characters_in_what_it_prints(synthetic_db: Path) -> None:
+    text = OBLIGATIONS_TEXT + "\x1bc"  # ESC c would reset a terminal
+    turns = [OBLIGATIONS[0], answered(text)]
+    run = run_main(
+        "ask", QUESTION, "--database", str(synthetic_db), model_factory=Serving(ReplayModel(turns))
+    )
+    assert run.code == 0
+    assert "\x1b" not in run.stdout
+    assert f"Answer: {OBLIGATIONS_TEXT}\\x1bc\n" in run.stdout
 
 
 def test_a_fatal_model_error_returns_two_and_writes_nothing(
@@ -706,20 +746,23 @@ def test_the_model_and_effort_come_from_the_flags_then_the_environment_then_the_
 
 
 @pytest.mark.parametrize("value", ["", "   "], ids=["empty", "spaces"])
-def test_an_empty_model_flag_is_a_bad_argument_with_exit_code_two(
-    synthetic_db: Path, value: str
+def test_an_empty_model_flag_is_a_bad_setting_with_exit_code_two(
+    tmp_path: Path, value: str
 ) -> None:
+    database = tmp_path / "missing.duckdb"
     run = run_main(
         "ask",
         QUESTION,
         "--database",
-        str(synthetic_db),
+        str(database),
         "--model",
         value,
         model_factory=refuse_to_build,
     )
     assert run.code == 2
-    assert run.stdout == "" and "model" in run.stderr
+    assert run.stdout == ""
+    assert run.stderr.startswith("bad setting: ") and "model" in run.stderr
+    assert not database.exists()
 
 
 def test_with_a_key_and_no_factory_the_cli_builds_the_live_model_class(
@@ -744,12 +787,7 @@ def test_with_a_key_and_no_factory_the_cli_builds_the_live_model_class(
         environ={KEY_ENV: KEY},
     )
     assert run.code == 0 and built == [1]
-    everything = (
-        run.stdout
-        + run.stderr
-        + "".join(path.read_text(encoding="utf-8") for path in sorted(out.iterdir()))
-    )
-    assert KEY not in everything
+    assert KEY not in everything_written(run, out)
 
 
 def test_the_key_value_is_never_printed_or_recorded_by_a_run_with_a_factory(
@@ -766,12 +804,7 @@ def test_the_key_value_is_never_printed_or_recorded_by_a_run_with_a_factory(
         environ={KEY_ENV: KEY},
         model_factory=Serving(ReplayModel(OBLIGATIONS)),
     )
-    everything = (
-        run.stdout
-        + run.stderr
-        + "".join(path.read_text(encoding="utf-8") for path in sorted(out.iterdir()))
-    )
-    assert run.code == 0 and KEY not in everything
+    assert run.code == 0 and KEY not in everything_written(run, out)
 
 
 # --- the warehouse file -----------------------------------------------------------------------
@@ -834,7 +867,7 @@ def run_session(
 def test_session_writes_a_transcript_pair_per_question_and_an_index(
     tmp_path: Path, synthetic_db: Path
 ) -> None:
-    model = OnePerQuestion(OBLIGATIONS, AWARDS)
+    model = ReplayModel([*OBLIGATIONS, *AWARDS])
     factory = Serving(model)
     questions = write_questions(tmp_path, "# two questions", QUESTION, "", SECOND_QUESTION)
     out = tmp_path / "transcripts"
@@ -851,7 +884,7 @@ def test_session_writes_a_transcript_pair_per_question_and_an_index(
     assert run.code == 0
     assert run.stderr == ""
     assert factory.calls == 1
-    assert all(replay.exhausted for replay in model.handlers)
+    assert model.exhausted
     assert sorted(path.name for path in out.iterdir()) == [
         f"01-{SLUG}.json",
         f"01-{SLUG}.md",
@@ -872,13 +905,37 @@ def test_session_writes_a_transcript_pair_per_question_and_an_index(
     assert first["provenance"] == second["provenance"] == REPLAY_PROVENANCE
 
 
+def test_session_takes_the_same_model_and_effort_flags_as_ask(
+    tmp_path: Path, synthetic_db: Path
+) -> None:
+    replay = ReplayModel(REFUSAL)
+    questions = write_questions(tmp_path, QUESTION)
+    run = run_main(
+        "session",
+        "--questions",
+        str(questions),
+        "--out",
+        str(tmp_path / "transcripts"),
+        "--database",
+        str(synthetic_db),
+        "--model",
+        "flag-model-id",
+        "--effort",
+        "low",
+        model_factory=Serving(replay),
+    )
+    assert run.code == 0
+    assert replay.requests[0]["model"] == "flag-model-id"
+    assert replay.requests[0]["output_config"] == {"effort": "low"}
+
+
 def test_session_index_lists_each_question_with_its_status_and_counts(
     tmp_path: Path, synthetic_db: Path
 ) -> None:
     run, out = run_session(
         tmp_path,
         synthetic_db,
-        Serving(OnePerQuestion(OBLIGATIONS, AWARDS)),
+        Serving(ReplayModel([*OBLIGATIONS, *AWARDS])),
         QUESTION,
         SECOND_QUESTION,
     )
@@ -910,13 +967,37 @@ def test_session_index_lists_each_question_with_its_status_and_counts(
     )
 
 
+def test_session_escapes_terminal_control_characters_in_the_status_lines(
+    tmp_path: Path, synthetic_db: Path
+) -> None:
+    run, _ = run_session(
+        tmp_path, synthetic_db, Serving(ReplayModel(OBLIGATIONS)), QUESTION + "\x07"
+    )
+    assert run.code == 0
+    assert "\x07" not in run.stdout
+    assert f"[1/1] answered: {QUESTION}\\x07\n" in run.stdout
+
+
+def test_session_index_keeps_a_pipe_in_a_question_inside_its_table_cell(
+    tmp_path: Path, synthetic_db: Path
+) -> None:
+    question = "Which is larger | the first or the second?"
+    run, out = run_session(tmp_path, synthetic_db, Serving(ReplayModel(REFUSAL)), question)
+    assert run.code == 0
+    row = (out / "session.md").read_text(encoding="utf-8").splitlines()[-1]
+    text = "Which is larger \\| the first or the second?"
+    link = f"[{text}](01-which-is-larger-the-first-or-the-second.md)"
+    assert row == f"| 1 | refused | 0 | {link} |"
+    assert len(re.split(r"(?<!\\)\|", row)) == 6  # four cells between the outer pipes
+
+
 def test_a_second_session_into_the_same_directory_returns_two_before_calling_the_model(
     tmp_path: Path, synthetic_db: Path
 ) -> None:
     first, out = run_session(
         tmp_path,
         synthetic_db,
-        Serving(OnePerQuestion(OBLIGATIONS, AWARDS)),
+        Serving(ReplayModel([*OBLIGATIONS, *AWARDS])),
         QUESTION,
         SECOND_QUESTION,
     )
@@ -968,7 +1049,7 @@ def test_session_refuses_a_directory_that_already_holds_an_index(
 def test_a_failed_question_makes_the_session_return_one_but_the_next_one_still_runs(
     tmp_path: Path, synthetic_db: Path
 ) -> None:
-    model = OnePerQuestion(NOT_JSON, AWARDS)
+    model = ReplayModel([*NOT_JSON, *AWARDS])
     run, out = run_session(tmp_path, synthetic_db, Serving(model), QUESTION, SECOND_QUESTION)
     assert run.code == 1
     assert run.stdout.splitlines()[:2] == [
@@ -984,7 +1065,7 @@ def test_a_failed_question_makes_the_session_return_one_but_the_next_one_still_r
 def test_a_refused_question_does_not_make_the_session_fail(
     tmp_path: Path, synthetic_db: Path
 ) -> None:
-    model = OnePerQuestion(REFUSAL, OBLIGATIONS)
+    model = ReplayModel([*REFUSAL, *OBLIGATIONS])
     run, out = run_session(
         tmp_path, synthetic_db, Serving(model), "How much did NASA spend?", QUESTION
     )
@@ -997,7 +1078,7 @@ def test_a_fatal_error_stops_the_session_and_the_index_says_why(
     tmp_path: Path, synthetic_db: Path
 ) -> None:
     error = ModelError("the API refused the key: check ANTHROPIC_API_KEY", fatal=True)
-    model = OnePerQuestion(OBLIGATIONS, error)
+    model = FailsAfter(ReplayModel(OBLIGATIONS), error)
     run, out = run_session(tmp_path, synthetic_db, Serving(model), QUESTION, SECOND_QUESTION)
     assert run.code == 2
     assert run.stderr == f"[2/2] stopped: {error}\n"
@@ -1014,14 +1095,15 @@ def test_a_fatal_error_stops_the_session_and_the_index_says_why(
     assert f"Stopped early: {error}\n" in (out / "session.md").read_text(encoding="utf-8")
 
 
-def test_a_session_can_run_on_one_replay_model_whose_turns_cover_both_questions(
+def test_each_question_of_a_session_opens_a_fresh_conversation(
     tmp_path: Path, synthetic_db: Path
 ) -> None:
     replay = ReplayModel([*OBLIGATIONS, *AWARDS])
-    run, out = run_session(tmp_path, synthetic_db, Serving(replay), QUESTION, SECOND_QUESTION)
+    run, _ = run_session(tmp_path, synthetic_db, Serving(replay), QUESTION, SECOND_QUESTION)
     assert run.code == 0
-    assert replay.exhausted
-    assert (out / f"02-{SECOND_SLUG}.json").is_file() and (out / "session.json").is_file()
+    # two requests for the first question, then the second question alone: no shared history
+    assert [len(request["messages"]) for request in replay.requests] == [1, 3, 1, 3]
+    assert replay.requests[2]["messages"] == [{"role": "user", "content": SECOND_QUESTION}]
 
 
 # --- describe ---------------------------------------------------------------------------------
