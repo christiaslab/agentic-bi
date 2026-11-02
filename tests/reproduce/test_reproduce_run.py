@@ -176,3 +176,26 @@ def test_report_is_json_with_decimal_strings_and_fixed_point_differences(
     assert values["awards.active_in_period.count"]["reproduced"] == 6016
     assert values["transactions.count"]["reproduced"] is None
     assert values["transactions.count"]["disposition"] == "candidate_catalog_change"
+
+
+def test_an_amount_mapped_to_a_share_metric_is_an_error_not_a_tolerance(
+    query_connection, golden: Golden
+) -> None:
+    # obligations.total is in USD; a share metric would compare it within half a cent
+    outcome = _run(
+        query_connection,
+        golden,
+        _mapped("obligations.total", {"metric": "competition_rate", "time_range": FY}),
+    )["obligations.total"]
+    assert outcome.status == ERROR
+    assert "does not fit metric competition_rate" in outcome.reason
+    assert outcome.reproduced is None
+
+
+def test_every_golden_unit_has_a_catalog_unit(golden: Golden) -> None:
+    from agentic_bi.reproduce.run import GOLDEN_UNITS
+    from agentic_bi.semantic import default_catalog
+
+    units = {metric.unit for metric in default_catalog().metrics.values()}
+    assert set(GOLDEN_UNITS.values()) <= units
+    assert {value.unit for value in golden.values} <= set(GOLDEN_UNITS) | {"transactions"}

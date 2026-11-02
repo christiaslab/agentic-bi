@@ -18,7 +18,7 @@ Reproduced: the slice total, the 12 fiscal months, 4 of the 5 recipients, the 5 
 [evals/golden_queries.yaml](../evals/golden_queries.yaml) lists every golden id exactly once. An entry is either:
 
 - a **query**: one structured query of the S3a schema ([docs/catalog.md](catalog.md)), compiled from the catalog and run on the read-only query connection exactly as an agent's query would be, through `agentic_bi.semantic.execute`. Nothing in the reproduction writes SQL; or
-- **not expressible**: a one-line reason, a disposition (a candidate catalog change, or out of scope by design), and an attempt: the nearest structured query and the refusal code the compiler gives it. The run compiles the attempt every time, so the day the catalog learns to express the value, the entry turns red and is due for a query.
+- **not expressible**: a one-line reason, a disposition (a candidate catalog change, or out of scope by design), and an attempt: the nearest structured query and the refusal code the compiler gives it. The run compiles the attempt every time and expects the same refusal. This is a tripwire, not a proof: it turns red only when the catalog gains the very metric or dimension the attempt names (`transaction_count`, `net_negative_award_count`, `deobligations`, or an `award` dimension). A new metric under another name needs the entry to be revisited by hand.
 
 Choices made in the mapping:
 
@@ -36,7 +36,7 @@ A value that does not match is never moved to another query to make it pass. Its
 
 ## Comparison rule
 
-The rule follows the metric's kind in the catalog, never a setting of the mapping, so no entry can loosen its own comparison (`src/agentic_bi/reproduce/compare.py`).
+The rule follows the metric's kind in the catalog, never a setting of the mapping, so no entry can loosen its own comparison (`src/agentic_bi/reproduce/compare.py`). The golden value's unit must also fit the metric's catalog unit (`USD` to `usd`, `awards` to `awards`, `ratio` to `share`), or the value is an error: an amount cannot borrow the ratio tolerance by being mapped to a share metric.
 
 | Metric kind | Metrics | Rule |
 | --- | --- | --- |
