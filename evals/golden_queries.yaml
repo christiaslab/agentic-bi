@@ -1,0 +1,181 @@
+# Golden reproduction: every value of docs/golden/golden.json mapped to one structured query
+# (the S3a schema, docs/catalog.md), or to the reason the catalog cannot express it.
+#
+# Read by agentic_bi.reproduce (docs/reproduction.md). Every golden id appears exactly once.
+# An entry holds either
+#   query:            the structured query, compiled and run as an agent's query would be;
+#   row:              for a grouped query, the output columns and values that select the one
+#                     row the golden value describes; absent when the query returns one row;
+#   known_difference: set only after a run showed a difference; the value stays failing and
+#                     the test marks it xfail with this reason (it is never remapped to pass);
+# or
+#   not_expressible:  one line, why no catalog query gives this value;
+#   disposition:      candidate_catalog_change or out_of_scope_by_design;
+#   attempt:          the nearest structured query and the refusal code the compiler gives it.
+# A note explains a mapping choice; it changes nothing.
+#
+# Every query carries the fiscal year of the slice as its time range, as a question about
+# fiscal year 2025 would.
+
+version: 1
+golden_capture_date: "2026-11-01"
+
+values:
+  # owner_api: the slice totals
+  - id: transactions.count
+    not_expressible: >-
+      The catalog counts awards, not transactions; no metric counts transaction rows.
+    disposition: candidate_catalog_change
+    attempt:
+      query: {metric: transaction_count, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+      refusal: unknown_metric
+  - id: obligations.total
+    query: {metric: obligations, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  # owner_api: obligations by fiscal month, one grouped query, one row per month
+  - id: obligations.fiscal_month.01
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 1}
+  - id: obligations.fiscal_month.02
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 2}
+  - id: obligations.fiscal_month.03
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 3}
+  - id: obligations.fiscal_month.04
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 4}
+  - id: obligations.fiscal_month.05
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 5}
+  - id: obligations.fiscal_month.06
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 6}
+  - id: obligations.fiscal_month.07
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 7}
+  - id: obligations.fiscal_month.08
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 8}
+  - id: obligations.fiscal_month.09
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 9}
+  - id: obligations.fiscal_month.10
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 10}
+  - id: obligations.fiscal_month.11
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 11}
+  - id: obligations.fiscal_month.12
+    query: {metric: obligations, grain: fiscal_month, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {fiscal_year: 2025, fiscal_month: 12}
+
+  # owner_api: the publisher's top five recipients. The catalog's recipient dimension is the
+  # reporting (parent) UEI; the publisher ranks recipients by their own UEI.
+  - id: obligations.recipient.DBD6KDKXWN65
+    query: {metric: obligations, filters: [{field: recipient, op: eq, value: "DBD6KDKXWN65"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.recipient.VHPJR3MJWV49
+    query: {metric: obligations, filters: [{field: recipient, op: eq, value: "VHPJR3MJWV49"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.recipient.MHMPN3F73NX3
+    query: {metric: obligations, filters: [{field: recipient, op: eq, value: "MHMPN3F73NX3"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.recipient.Z4XGALW7L9K6
+    query: {metric: obligations, filters: [{field: recipient, op: eq, value: "Z4XGALW7L9K6"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    known_difference: >-
+      Recipient level differs: the catalog's recipient dimension is the reporting (parent) UEI, and the transactions of recipient Z4XGALW7L9K6 roll up to four parents (ML53DYBW2523, RBRXSHXKFCB5, Z4XGALW7L9K6, XA9SVRU7K217), so the query gives -923852.08 for the six transactions whose parent is Z4XGALW7L9K6, not the 84868589.24 the publisher gives for the recipient's own UEI.
+  - id: obligations.recipient.DK4TBEJRAR56
+    query: {metric: obligations, filters: [{field: recipient, op: eq, value: "DK4TBEJRAR56"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  # owner_api: the publisher's top five product and service codes
+  - id: obligations.psc.F108
+    query: {metric: obligations, filters: [{field: psc, op: eq, value: "F108"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.psc.R499
+    query: {metric: obligations, filters: [{field: psc, op: eq, value: "R499"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.psc.R429
+    query: {metric: obligations, filters: [{field: psc, op: eq, value: "R429"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.psc.F999
+    query: {metric: obligations, filters: [{field: psc, op: eq, value: "F999"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.psc.F115
+    query: {metric: obligations, filters: [{field: psc, op: eq, value: "F115"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  # owner_api: the publisher's top five NAICS codes (codes are text, so they are quoted)
+  - id: obligations.naics.562910
+    query: {metric: obligations, filters: [{field: naics, op: eq, value: "562910"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.naics.541620
+    query: {metric: obligations, filters: [{field: naics, op: eq, value: "541620"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.naics.541611
+    query: {metric: obligations, filters: [{field: naics, op: eq, value: "541611"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.naics.541512
+    query: {metric: obligations, filters: [{field: naics, op: eq, value: "541512"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.naics.541715
+    query: {metric: obligations, filters: [{field: naics, op: eq, value: "541715"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  # owner_api: obligations by sub-agency (EPA has one)
+  - id: obligations.sub_agency.environmental_protection_agency
+    query: {metric: obligations, filters: [{field: sub_agency, op: eq, value: "6800"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    note: >-
+      The golden value names the sub-agency; the catalog dimension takes its code. 6800 is the code dim_sub_agency gives the name Environmental Protection Agency, which a test checks.
+
+  # owner_api: the five largest states of place of performance
+  - id: obligations.pop_state.CA
+    query: {metric: obligations, filters: [{field: pop_state, op: eq, value: "CA"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.pop_state.OH
+    query: {metric: obligations, filters: [{field: pop_state, op: eq, value: "OH"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.pop_state.VA
+    query: {metric: obligations, filters: [{field: pop_state, op: eq, value: "VA"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.pop_state.DC
+    query: {metric: obligations, filters: [{field: pop_state, op: eq, value: "DC"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: obligations.pop_state.TX
+    query: {metric: obligations, filters: [{field: pop_state, op: eq, value: "TX"}], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+
+  # derived: computed from the snapshot by the SQL stored with each golden value
+  - id: awards.active_in_period.count
+    query: {metric: award_count, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: awards.net_negative.count
+    not_expressible: >-
+      Counting awards by the sign of their net obligation needs a per-award sum and a condition on it; no metric kind does that.
+    disposition: candidate_catalog_change
+    attempt:
+      query: {metric: net_negative_award_count, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+      refusal: unknown_metric
+  - id: obligations.deobligations.sum
+    not_expressible: >-
+      The catalog sums obligations net only; no metric or filter selects the negative transaction amounts.
+    disposition: candidate_catalog_change
+    attempt:
+      query: {metric: deobligations, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+      refusal: unknown_metric
+  - id: awards.average_net_obligation
+    query: {metric: avg_award_value, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: recipients.top10_reporting_share
+    query: {metric: supplier_concentration_top10, time_range: {start: "2024-10-01", end: "2025-09-30"}}
+  - id: award.most_negative.net_obligation
+    not_expressible: >-
+      Finding the award with the lowest net obligation needs an award dimension and an order with a limit; the ADR-0002 query has neither, and awards are not a catalog dimension.
+    disposition: out_of_scope_by_design
+    attempt:
+      query: {metric: obligations, dimensions: [award], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+      refusal: unknown_dimension
+
+  # derived: obligations per extent-competed code, one grouped query as in the derivation SQL;
+  # a filter cannot select the missing code, since filter values are never null
+  - id: obligations.extent_competed.A
+    query: {metric: obligations, dimensions: [competition], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {competition: "A"}
+  - id: obligations.extent_competed.B
+    query: {metric: obligations, dimensions: [competition], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {competition: "B"}
+  - id: obligations.extent_competed.C
+    query: {metric: obligations, dimensions: [competition], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {competition: "C"}
+  - id: obligations.extent_competed.D
+    query: {metric: obligations, dimensions: [competition], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {competition: "D"}
+  - id: obligations.extent_competed.F
+    query: {metric: obligations, dimensions: [competition], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {competition: "F"}
+  - id: obligations.extent_competed.G
+    query: {metric: obligations, dimensions: [competition], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {competition: "G"}
+  - id: obligations.extent_competed.unreported
+    query: {metric: obligations, dimensions: [competition], time_range: {start: "2024-10-01", end: "2025-09-30"}}
+    row: {competition: null}
