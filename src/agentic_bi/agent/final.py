@@ -61,13 +61,14 @@ def check_final_reply(
     question: str,
     coverage: Sequence[dt.date] = (),
     top_n: Iterable[int] = (),
+    names: Iterable[str] = (),
 ) -> None:
     """Raise ``FinalReplyRejected`` unless the reply keeps the rules of the typed answer."""
     if reply.status == ANSWERED and not runs:
         raise FinalReplyRejected(
             "an answer needs at least one run_query result; run the query, or refuse"
         )
-    evidence = build_evidence(runs, coverage=coverage, top_n=top_n, question=question)
+    evidence = build_evidence(runs, coverage=coverage, top_n=top_n, question=question, names=names)
     text = reply.answer if reply.status == ANSWERED else reply.reason
     missing = ungrounded(text or "", evidence)
     if missing:

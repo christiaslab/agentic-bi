@@ -84,7 +84,7 @@ The model's final reply is one JSON object:
 - **A frame number**, a plain whole number that frames a query: a fiscal year, month or quarter, a code written in digits (NAICS 562910), a numeric filter value, the `limit`, the 10 of the top-10 share, a rank up to the number of rows, or a year, month or day of the time range or of the coverage.
 - **A figure the user wrote in the question** ("fiscal year 2023").
 
-Numbers inside a word or a code (`F108`, `FY2025`, `Q3`, `5th`, a UEI) are not figures. A name never counts as evidence: names come from the `schema` tool, not from rows, so a number inside a recipient name cannot ground a figure. Nothing the model computes itself passes: a sum of two rows, a difference, a growth rate. For such a figure the model must run a query. The same check applies to the reason of a refusal.
+Numbers inside a word or a code (`F108`, `FY2025`, `Q3`, `5th`, a UEI) are not figures. A name never counts as evidence: names come from the `schema` tool, not from rows, so a number inside a recipient name cannot ground a figure stated elsewhere. A name the `schema` tool returned and the answer writes out in full is text, not a figure: ten labels of the 2026-11-01 warehouse hold a number, such as `CHENEGA SENTINEL 360, LLC`, and the 360 in it is not checked, while a 360 written anywhere else is. Nothing the model computes itself passes: a sum of two rows, a difference, a growth rate. For such a figure the model must run a query. The same check applies to the reason of a refusal.
 
 ## The refusal rules
 

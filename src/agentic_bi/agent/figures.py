@@ -17,9 +17,11 @@ A figure is grounded when either
 - it has the value of a figure the user wrote in the question ("over 2 billion", "fiscal
   year 2023"), so that an answer or a refusal can repeat it.
 
-Label text never counts: names come from the schema tool, not from rows, so a recipient name
-that holds a number cannot ground it. Nothing the model computes itself (a sum of rows, a
-difference, a growth rate) is grounded; the agent must run a query for it instead.
+Label text never counts as evidence: names come from the schema tool, not from rows, so a
+recipient name that holds a number cannot ground a figure stated elsewhere. A name the schema
+tool returned, written out in full in the text (``CHENEGA SENTINEL 360, LLC``), is text and not
+a figure, so the number inside it is not checked. Nothing the model computes itself (a sum of
+rows, a difference, a growth rate) is grounded; the agent must run a query for it instead.
 """
 
 from __future__ import annotations
@@ -64,6 +66,9 @@ _SCALES = {
     "trillion": Decimal(10) ** 12,
 }
 _NUMERIC_TEXT = re.compile(r"-?\d+(?:\.\d+)?")
+# A name worth masking: at least four characters with a letter and a digit. Pure digits stay
+# figures or frame numbers; a name without a digit holds no number to mask.
+_NAME = re.compile(r"(?=.*[A-Za-z])(?=.*\d).{4,}", re.DOTALL)
 
 
 @dataclass(frozen=True)
@@ -82,6 +87,8 @@ class Evidence:
     frame: frozenset[Decimal]
     stated: frozenset[Decimal]
     dates: frozenset[str]
+    # names and codes the schema tool returned that hold a letter and a digit (see _NAME)
+    names: tuple[str, ...] = ()
 
 
 def find_figures(text: str) -> tuple[list[Figure], list[str]]:
@@ -108,9 +115,10 @@ def build_evidence(
     coverage: Sequence[dt.date] = (),
     top_n: Iterable[int] = (),
     question: str = "",
+    names: Iterable[str] = (),
 ) -> Evidence:
     """What figures may match: the runs' metric cells, their frame numbers and dates, and the
-    figures and dates of the question."""
+    figures and dates of the question; ``names`` are the schema tool's names and codes."""
     measured: list[Decimal] = []
     frame: set[Decimal] = {Decimal(n) for n in top_n}
     days: set[dt.date] = set(coverage)
@@ -138,11 +146,15 @@ def build_evidence(
         frame=frozenset(frame),
         stated=frozenset(figure.value for figure in stated_figures),
         dates=frozenset(day.isoformat() for day in days) | frozenset(stated_dates),
+        names=tuple(sorted({n for n in names if _NAME.fullmatch(n)}, key=len, reverse=True)),
     )
 
 
 def ungrounded(text: str, evidence: Evidence) -> list[str]:
     """Each figure or date of ``text`` that matches nothing in ``evidence``, as written."""
+    for name in evidence.names:
+        pattern = re.compile(rf"(?<!\w){re.escape(name)}(?!\w)", re.IGNORECASE)
+        text = pattern.sub(lambda match: " " * len(match.group(0)), text)
     figures, dates = find_figures(text)
     missing = [date for date in dates if date not in evidence.dates]
     for figure in figures:
