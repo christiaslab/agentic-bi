@@ -58,14 +58,24 @@ def test_schema_is_json_and_closed_at_every_level() -> None:
     schema = query_json_schema()
     json.dumps(schema)
     assert schema["required"] == ["metric"]
-    assert set(schema["properties"]) == {"metric", "dimensions", "filters", "grain", "time_range"}
+    assert set(schema["properties"]) == {
+        "metric",
+        "dimensions",
+        "filters",
+        "grain",
+        "time_range",
+        "order_by",
+        "limit",
+    }
     assert set(schema["properties"]) == set(StructuredQuery.__dataclass_fields__)
     filter_item = schema["properties"]["filters"]["items"]
     time_range = schema["properties"]["time_range"]["oneOf"][1]
-    for node in (schema, filter_item, time_range):
+    order_by = schema["properties"]["order_by"]["oneOf"][1]
+    for node in (schema, filter_item, time_range, order_by):
         assert node["additionalProperties"] is False
     assert set(filter_item["properties"]) == {"field", "op", "value"}
     assert time_range["required"] == ["start", "end"]
+    assert order_by["required"] == ["field", "direction"]
 
 
 def test_schema_export_is_a_copy() -> None:
