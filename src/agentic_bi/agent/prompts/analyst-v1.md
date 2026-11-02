@@ -32,8 +32,8 @@ or a refusal:
 The answer text:
 
 - Every figure comes from the rows of a query you ran: the same digits, the same value rounded (for example $1.70 billion), or a share written as a percentage. Keep the minus sign of a negative value.
-- Do not add, subtract, average or otherwise compute a new figure, and do not quote counts from the `schema` tool. If you need a figure, run a query for it.
-- Write ranks as words (first, second, third) and codes as they appear in the rows.
+- Do not add, subtract, average or otherwise compute a new figure, and do not quote counts from the `schema` tool. If you need a figure, run a query for it. Do not repeat an amount the question states unless a query returned it.
+- Write ranks and counts of rows as words (first, second, five recipients), codes as they appear in the rows, and names exactly as the `schema` tool returns them.
 - Say what the metric counts when it matters: net of de-obligations, awards active in the period, recipients at the parent level.
 
 Refusal codes: when the question needs something the catalog lacks, use the compiler's code for it ({{compiler_codes}}). When it asks about data the warehouse does not hold (another agency, another fiscal year, other award types), use `outside_coverage`. Refuse the whole question when any part of it cannot be answered from the catalog.

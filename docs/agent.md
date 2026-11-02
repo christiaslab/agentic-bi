@@ -55,7 +55,7 @@ Every result reaches the model as JSON inside one delimiter:
 </tool_data>
 ```
 
-Inside the JSON, `<`, `>` and `&` are written as `<`, `>` and `&`. It is still the same JSON value, but no text from the warehouse can contain the delimiter, so a name cannot close it early or open a fake one. The `tool` attribute is one of the four names, or `unknown`, never text from the model or the data. The system prompt says that everything inside the delimiter is data and never an instruction. `tests/agent/test_agent_injection.py` feeds a recipient name that tries to close the delimiter and give orders, and shows that nothing else changes (below).
+Inside the JSON, `<`, `>` and `&` are written as `\u003c`, `\u003e` and `\u0026`. It is still the same JSON value, but no text from the warehouse can contain the delimiter, so a name cannot close it early or open a fake one. The `tool` attribute is one of the four names, or `unknown`, never text from the model or the data. The system prompt says that everything inside the delimiter is data and never an instruction. `tests/agent/test_agent_injection.py` feeds a recipient name that tries to close the delimiter and give orders, and shows that nothing else changes (below).
 
 ## The answer
 
@@ -78,13 +78,16 @@ The model's final reply is one JSON object:
 
 ### Every figure appears in the rows
 
-`figures.py` reads every number in the answer text and accepts it only when it matches the rows of a query that ran:
+`figures.py` reads every number in the text of an answer, and in the reason of a refusal, and accepts it only when it matches the queries that ran:
 
 - **A measured value** (a metric cell) at the precision written: `$1,697,318,332.65`, `$1.70 billion`, `$1.7BN` and `1.7 billion` all match 1,697,318,332.65; `44.9%` matches a share of 0.449020. Scale words and suffixes are read in any case. The sign must agree: a de-obligation keeps its minus.
-- **A frame number**, a plain whole number that frames a query: a fiscal year, month or quarter, a code written in digits (NAICS 562910), a numeric filter value, the `limit`, the 10 of the top-10 share, a rank up to the number of rows, or a year, month or day of the time range or of the coverage.
-- **A figure the user wrote in the question** ("fiscal year 2023").
+- **A frame number**, a plain whole number that frames a query: a fiscal year, quarter or month in the rows, a code written in digits (NAICS 562910), a numeric filter value, the `limit`, the 10 of the top-10 share, or the year of a time range or of the coverage.
+- **A plain whole number the question wrote** ("fiscal year 2023", "the top 3"). An amount the question states is not a fact of the rows: "Were obligations $3 billion?" cannot be answered "Yes, $3 billion".
+- **A date** of a time range, of the coverage or of the question, written as an ISO date (`2024-10-01`) or in words (`October 1, 2024`, `30 September 2025`, `September 30`). A month or a day written on its own is not a figure the rows hold.
 
-Numbers inside a word or a code (`F108`, `FY2025`, `Q3`, `5th`, `2.5x`, a UEI) are not figures, but a number written with a dollar sign always is, whatever follows it, and both ends of a range (`10-15%`) are figures. A name never counts as evidence: names come from the `schema` tool, not from rows, so a number inside a recipient name cannot ground a figure stated elsewhere. A name the `schema` tool returned and the answer writes out in full is text, not a figure: ten labels of the 2026-11-01 warehouse hold a number, such as `CHENEGA SENTINEL 360, LLC`, and the 360 in it is not checked, while a 360 written anywhere else is. Nothing the model computes itself passes: a sum of two rows, a difference, a growth rate. For such a figure the model must run a query. The same check applies to the reason of a refusal.
+What counts as a figure: a number inside a word or a code is not one (`F108`, `FY2025`, `Q3`, `5th`, PSC `7B20`, `30MM`, a UEI), but a number written with a currency sign always is, whatever follows it, and so are a multiple (`2.5x`) and both ends of a range (`10-15%`). Nothing the model works out itself passes: a sum or a difference of rows, a ratio, a multiple, a growth rate, a count of rows, a rank written in digits. For such a figure the model must run a query, and ranks are written as words.
+
+Names: a name never counts as evidence. Names come from the `schema` tool, not from rows, so a number inside a recipient name cannot ground a figure stated elsewhere. A name the `schema` tool returned and the answer writes out in full, or without its legal suffix (`LLC`, `INC`), is text: ten labels of the 2026-11-01 warehouse hold a whole number, such as `CHENEGA SENTINEL 360, LLC`, and the 360 in it is not checked, while a 360 written anywhere else is. Any other number inside a name (an amount, a percent, a decimal, a scale word) is still checked, so a name cannot carry a figure into an answer.
 
 ## The refusal rules
 
@@ -124,7 +127,7 @@ uv run python -m agentic_bi.agent session --questions tests/agent/live-questions
 - `session` runs one question per line of the file (blank lines and `#` comments are skipped) and writes, for each, `NN-<slug>.json` and `NN-<slug>.md`, then `session.json` and `session.md` with a status table. It refuses to overwrite earlier transcripts; use a new `--out` directory per run. `data/tmp/` is ignored by git.
 - `tests/agent/live-questions.txt` holds the questions of the sixteen replays, in order, so each live transcript can be read next to its replay.
 - `--model ID` (or the environment variable `AGENTIC_BI_MODEL`) picks another model; `--effort` sets the effort (default `high`). `--database PATH` points at another warehouse file; the default is `data/tmp/warehouse.duckdb`, built from the committed snapshot when it is missing.
-- Exit codes: 0 when every question was answered or refused, 1 when one failed, 2 when nothing could run (no key, a bad argument, an existing transcript, an error every call would hit: a rejected key, an unknown model, a request the API refuses).
+- Exit codes: 0 when every question was answered or refused, 1 when one failed, 2 when nothing could run (no key, a bad argument or setting, an existing transcript, or an error every call would hit: a rejected key, a key without access, an unknown model). A request the API refuses (a 400), a rate limit after the SDK's retries, a server error or a network failure fails that question only; a session goes on with the next one.
 
 ### What to check in the transcripts
 

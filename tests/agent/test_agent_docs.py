@@ -46,3 +46,12 @@ def test_the_live_questions_are_the_replay_questions_in_order() -> None:
 def test_no_em_or_en_dash(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     assert chr(0x2014) not in text and chr(0x2013) not in text
+
+
+def test_the_guide_states_the_escapes_the_envelope_writes() -> None:
+    from agentic_bi.agent.envelope import dumps
+
+    text = GUIDE.read_text(encoding="utf-8")
+    escaped = [dumps(char).strip('"') for char in "<>&"]
+    assert escaped == ["\\u003c", "\\u003e", "\\u0026"]
+    assert "written as `{}`, `{}` and `{}`".format(*escaped) in text
