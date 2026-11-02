@@ -1,0 +1,129 @@
+{
+  "replay": 1,
+  "provenance": "hand-written",
+  "note": "Hand-written on 2026-11-02 from the tool definitions in src/agentic_bi/agent/tools.py, to drive the real tool layer offline on the warehouse built from the committed snapshot. No model produced these turns and they are not model output; the figures in the final reply were copied from the rows the tools return.",
+  "id": "q07-top5-recipients",
+  "question": "Who were the five largest recipients by net obligations in FY2025?",
+  "covers": [
+    "dimension recipient",
+    "order_by and limit",
+    "schema codes"
+  ],
+  "expect": {
+    "status": "answered",
+    "queries": 1,
+    "golden": [
+      {
+        "id": "obligations.recipient.DBD6KDKXWN65",
+        "run": 0,
+        "where": {
+          "recipient": "DBD6KDKXWN65"
+        },
+        "text": "$141,735,682.10"
+      },
+      {
+        "id": "obligations.recipient.VHPJR3MJWV49",
+        "run": 0,
+        "where": {
+          "recipient": "VHPJR3MJWV49"
+        },
+        "text": "$136,907,984.75"
+      },
+      {
+        "id": "obligations.recipient.MHMPN3F73NX3",
+        "run": 0,
+        "where": {
+          "recipient": "MHMPN3F73NX3"
+        },
+        "text": "$115,370,521.15"
+      },
+      {
+        "id": "obligations.recipient.DK4TBEJRAR56",
+        "run": 0,
+        "where": {
+          "recipient": "DK4TBEJRAR56"
+        },
+        "text": "$66,893,110.69"
+      }
+    ],
+    "known_differences": [
+      {
+        "id": "obligations.recipient.Z4XGALW7L9K6",
+        "absent_from_run": 0,
+        "column": "recipient",
+        "reason": "The golden recipient values are the publisher's recipient-level totals; the catalog's recipient dimension is the parent level (ADR-0002). Most of Z4XGALW7L9K6's transactions roll up to other parents, so it is not in the parent-level top five; ML53DYBW2523, fifth here, has no golden value."
+      }
+    ]
+  },
+  "turns": [
+    {
+      "stop_reason": "tool_use",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_q07_1",
+          "name": "catalog",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "stop_reason": "tool_use",
+      "content": [
+        {
+          "type": "text",
+          "text": "Ranking recipients by net obligations, largest first, and keeping five."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_q07_2",
+          "name": "run_query",
+          "input": {
+            "metric": "obligations",
+            "dimensions": [
+              "recipient"
+            ],
+            "time_range": {
+              "start": "2024-10-01",
+              "end": "2025-09-30"
+            },
+            "order_by": {
+              "field": "obligations",
+              "direction": "desc"
+            },
+            "limit": 5
+          }
+        }
+      ]
+    },
+    {
+      "stop_reason": "tool_use",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_q07_3",
+          "name": "schema",
+          "input": {
+            "dimension": "recipient",
+            "codes": [
+              "DBD6KDKXWN65",
+              "VHPJR3MJWV49",
+              "MHMPN3F73NX3",
+              "DK4TBEJRAR56",
+              "ML53DYBW2523"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"status\": \"answered\", \"answer\": \"At the parent level, the five largest recipients in fiscal year 2025 were ENVIRONMENTAL QUALITY MANAGEMENT, INC (DBD6KDKXWN65) with $141,735,682.10, SEVENSON ENVIRONMENTAL SERVICES, INC. (VHPJR3MJWV49) with $136,907,984.75, ENVIRONMENTAL RESTORATION LLC (MHMPN3F73NX3) with $115,370,521.15, EASTERN RESEARCH GROUP INC (DK4TBEJRAR56) with $66,893,110.69, and WESTON SOLUTIONS HOLDINGS, INC. (ML53DYBW2523) with $64,159,150.30.\"}"
+        }
+      ]
+    }
+  ]
+}
