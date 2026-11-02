@@ -1,0 +1,70 @@
+table dim_date
+	dataCategory: Time
+	lineageTag: 343bce98-518b-50db-8e74-26297a349978
+
+	column date
+		dataType: dateTime
+		isKey
+		formatString: yyyy-mm-dd
+		lineageTag: 0e4ec6fa-e47e-527f-ab9f-468a1f65220d
+		summarizeBy: none
+		sourceColumn: date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column fiscal_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 813f6cdd-18b9-5cd0-908f-f6e6672709a6
+		summarizeBy: none
+		sourceColumn: fiscal_year
+
+	column fiscal_quarter
+		dataType: int64
+		formatString: 0
+		lineageTag: eeea5d73-d049-54b7-9e84-94d32e30a9a1
+		summarizeBy: none
+		sourceColumn: fiscal_quarter
+
+	column fiscal_month
+		dataType: int64
+		formatString: 0
+		lineageTag: e5092725-41db-5f87-b8bb-163e5c494fc3
+		summarizeBy: none
+		sourceColumn: fiscal_month
+
+	column calendar_year
+		dataType: int64
+		formatString: 0
+		lineageTag: b18d03b0-a1da-56c4-85e6-177f2bf25a92
+		summarizeBy: none
+		sourceColumn: calendar_year
+
+	column calendar_month
+		dataType: int64
+		formatString: 0
+		lineageTag: c53a7144-945d-5f30-a917-b8a59e35bc3e
+		summarizeBy: none
+		sourceColumn: calendar_month
+
+	partition dim_date = m
+		mode: import
+		source =
+				let
+				    Source = Parquet.Document(File.Contents(DataFolder & "\dim_date.parquet")),
+				    Selected = Table.SelectColumns(Source, {"date", "fiscal_year", "fiscal_quarter", "fiscal_month", "calendar_year", "calendar_month"}),
+				    Typed = Table.TransformColumnTypes(
+				        Selected,
+				        {
+				            {"date", type date},
+				            {"fiscal_year", Int64.Type},
+				            {"fiscal_quarter", Int64.Type},
+				            {"fiscal_month", Int64.Type},
+				            {"calendar_year", Int64.Type},
+				            {"calendar_month", Int64.Type}
+				        }
+				    )
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table

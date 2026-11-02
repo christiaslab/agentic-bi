@@ -1,0 +1,92 @@
+# DAX for each metric of catalog/metrics.yaml, for the generated Power BI model (ADR-0004).
+#
+# One entry per catalog metric, keyed by the metric's name; the loader
+# (src/agentic_bi/powerbi/dax.py) refuses a missing metric, an extra metric and an unknown
+# key. The SQL rule stays in catalog/metrics.yaml and the compiler; each entry's "comment"
+# says how its DAX follows that rule. The generator writes each expression as a measure of
+# fct_contract_transaction named after the metric, with the metric's catalog description.
+#
+# Filter context plays the part of the compiler's WHERE and GROUP BY: a slicer or a visual's
+# rows select fact rows through the many-to-one relationships, as the compiler's LEFT joins
+# and filters do. Where the compiler returns null, these measures return BLANK.
+# Plain-language reading guide: docs/powerbi.md.
+
+version: 1
+
+metrics:
+  obligations:
+    comment: >-
+      Sign: the plain sum of the signed obligation amount over the fact rows in the filter
+      context, the compiler's sum(obligation_amount). De-obligations are negative rows and
+      are added as they are; nothing filters, nets or takes the absolute value of them.
+      An empty selection gives BLANK, as the SQL sum gives null.
+    expression: SUM ( fct_contract_transaction[obligation_amount] )
+
+  award_count:
+    comment: >-
+      Active-in-period award count: the distinct award keys among the fact rows in the
+      filter context, the compiler's count(DISTINCT award_key). A date filter selects
+      transactions, so an award counts when at least one of its transactions falls in the
+      period, whatever the amount, a de-obligation included; it is not a count of new
+      awards. DISTINCTCOUNTNOBLANK leaves a blank key out, as count(DISTINCT) leaves out
+      null. One difference in form: an empty selection gives BLANK where the compiler's
+      total query gives 0; grouped results agree, since neither shows an empty group.
+    expression: DISTINCTCOUNTNOBLANK ( fct_contract_transaction[award_key] )
+
+  avg_award_value:
+    comment: >-
+      Ratio of the two measures above in the same filter context, the compiler's
+      obligations / nullif(award_count, 0). Each keeps its own rule: net obligations with
+      de-obligations negative, divided by the awards active in the period. DIVIDE returns
+      BLANK when the count is BLANK or 0, as the SQL division by null gives null.
+    expression: DIVIDE ( [obligations], [award_count] )
+
+  supplier_concentration_top10:
+    comment: >-
+      Top-10 share at the reporting parent: the compiler sums obligations per
+      fct_contract_transaction.reporting_uei (the parent UEI, else the recipient's own)
+      within the selection, keeps the ten largest, ties broken by UEI, and divides their sum
+      by the sum over all reporting recipients. Here VALUES lists the reporting UEIs of the
+      fact rows in the filter context, [obligations] is evaluated for each by context
+      transition, and TOPN keeps ten rows ordered by amount, then by UEI, so a tie at tenth
+      place can never return more than ten rows; which tied UEI is kept does not change the
+      share. Amounts are net, so the share is 1 with ten or fewer recipients and can exceed
+      1 when the others are net negative. COALESCE plays the part of the SQL coalesce on the
+      numerator; DIVIDE gives BLANK when the total is BLANK or 0, as nullif does.
+    expression: |-
+      VAR _per_recipient =
+          ADDCOLUMNS (
+              VALUES ( fct_contract_transaction[reporting_uei] ),
+              "@obligations", [obligations]
+          )
+      VAR _top_10 =
+          TOPN (
+              10,
+              _per_recipient,
+              [@obligations], DESC,
+              fct_contract_transaction[reporting_uei], ASC
+          )
+      VAR _top_10_obligations = SUMX ( _top_10, [@obligations] )
+      VAR _all_obligations = SUMX ( _per_recipient, [@obligations] )
+      RETURN
+          DIVIDE ( COALESCE ( _top_10_obligations, 0 ), _all_obligations )
+
+  competition_rate:
+    comment: >-
+      Competed share: net obligations of the fact rows in the filter context whose
+      competition code has is_competed true, divided by the net obligations of all of them,
+      the compiler's coalesce(sum(...) FILTER (WHERE is_competed IS TRUE), 0) /
+      nullif(sum(...), 0). KEEPFILTERS intersects the condition with the selection instead of
+      replacing a filter on is_competed, as the SQL FILTER clause only narrows the selected
+      rows. A transaction with no competition code joins the blank row of dim_competition,
+      whose is_competed is BLANK, not TRUE, so it counts as not competed. Both sides are net,
+      so de-obligations reduce both.
+    expression: |-
+      VAR _all_obligations = [obligations]
+      VAR _competed_obligations =
+          CALCULATE (
+              [obligations],
+              KEEPFILTERS ( dim_competition[is_competed] = TRUE () )
+          )
+      RETURN
+          DIVIDE ( COALESCE ( _competed_obligations, 0 ), _all_obligations )

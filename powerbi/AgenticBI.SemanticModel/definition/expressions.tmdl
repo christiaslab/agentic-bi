@@ -1,0 +1,5 @@
+/// Folder holding the Parquet files of data/model, without a trailing backslash. Set it in Power BI Desktop: Transform data, Edit parameters.
+expression DataFolder = "C:\agentic-bi\data\model" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: a5a2b232-d0e2-5a30-b9b7-6c1ac93fa70b
+
+	annotation PBI_ResultType = Text

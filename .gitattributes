@@ -1,0 +1,12 @@
+# Power BI project files (ADR-0004 point 6): UTF-8 without BOM, CRLF line endings.
+# Stored with LF in the repository and checked out with CRLF on every system, so the
+# generated files match what Power BI Desktop writes and the regeneration test compares
+# like with like.
+powerbi/**/*.tmdl text eol=crlf
+powerbi/**/*.pbip text eol=crlf
+powerbi/**/*.pbism text eol=crlf
+powerbi/**/*.pbir text eol=crlf
+powerbi/**/*.json text eol=crlf
+
+# Exported contract tables: binary, never converted.
+*.parquet binary
