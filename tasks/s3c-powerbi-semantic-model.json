@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "task_id": "s3c-powerbi-semantic-model",
+  "goal": "Generate a Power BI Desktop project (PBIP) whose semantic model is written from the star-schema contract and the metrics catalog, over the contract tables exported to Parquet, so that the agent and a Power BI report answer from one set of measure definitions.",
+  "read_first": [
+    "AGENTS.md",
+    "docs/decisions/0002-structured-query-and-compiler.md",
+    "docs/decisions/0004-power-bi-semantic-model-from-the-catalog.md",
+    "docs/contracts/star-schema.md",
+    "catalog/metrics.yaml and docs/catalog.md",
+    "docs/warehouse.md and docs/golden/golden.json",
+    "docs/PLAN.md, row S3c"
+  ],
+  "owned_paths": [
+    "src/agentic_bi/powerbi/",
+    "tests/powerbi/",
+    "data/model/",
+    "powerbi/",
+    "catalog/dax.yaml",
+    ".gitattributes",
+    ".gitignore, to add the PBIP cache and local settings paths only",
+    "docs/powerbi.md",
+    "tasks/reports/s3c-powerbi-semantic-model.md"
+  ],
+  "out_of_scope": [
+    "catalog/metrics.yaml and src/agentic_bi/semantic/: the catalog loader refuses unknown keys, so DAX lives in catalog/dax.yaml; the S4 session owns the compiler tonight",
+    "report pages and visuals: the owner builds them in Power BI Desktop",
+    "publishing to the Power BI service or Fabric, and any licence or tenant setting",
+    "any change to a metric's SQL rule, to warehouse/ or to docs/contracts/star-schema.md",
+    "writing report.json, diagramLayout.json or any other file whose schema Microsoft does not document",
+    "pyproject.toml and uv.lock"
+  ],
+  "done_means": [
+    "uv run python -m agentic_bi.powerbi.export --out data/model builds the warehouse with agentic_bi.warehouse.build into data/tmp/ and writes one Parquet file per contract table; the fact's row count and obligation sum equal data/snapshot/manifest.json; the total size is in the report, and the files are committed only when under 10 MB together",
+    "catalog/dax.yaml holds one DAX expression per catalog metric, keyed by metric name, each with a comment on how it follows the metric's SQL rule (sign, active-in-period award count, reporting parent, top-10 share, competed share); a test fails when a metric is missing or an extra key appears",
+    "uv run python -m agentic_bi.powerbi.generate --out powerbi writes AgenticBI.SemanticModel in TMDL: one table per contract table with the contract's column names and types, a DataFolder parameter used by every partition, the contract's many-to-one relationships, dim_date marked as the date table, and one measure per catalog metric with the catalog's description",
+    "a test regenerates into a temporary folder and fails when any committed file under powerbi/ differs",
+    "generated files are UTF-8 without BOM with CRLF line endings, and .gitattributes keeps them so; paths stay short (Windows limit of 260 characters)",
+    "the TMDL is checked by a test against the documented TMDL grammar the session can apply without Microsoft tools: indentation, object keywords, quoting of names with spaces, and that every measure, column and relationship refers to an existing object",
+    "docs/powerbi.md explains how to open the project in Power BI Desktop and set DataFolder, and holds a check table of five golden values from docs/golden/golden.json (at least one derived, one by fiscal month, one by recipient) with an empty Desktop value column for the owner",
+    "uv run ruff check . && uv run ruff format --check . && uv run pytest -q && python3 scripts/commit_hygiene.py"
+  ],
+  "stop_and_report_when": [
+    "an object the model needs has no documented TMDL or PBIR form: generate the documented part and list what the owner must do in Desktop",
+    "a metric cannot be written in DAX under the same rule as its SQL: report it and leave its SQL rule unchanged",
+    "Microsoft's documentation cannot be reached from the session: work from what is known, mark each unverified TMDL detail in the report, and keep the generator conservative",
+    "a new dependency seems necessary, including .NET, Tabular Editor or any Power BI tool"
+  ],
+  "hand_back": "The branch s3c-powerbi-semantic-model, pushed to origin and never merged, with the report committed as tasks/reports/s3c-powerbi-semantic-model.md: outcome, the verification output, the generated file list, each metric's DAX next to its SQL rule, the unverified TMDL details, and what the owner must check in Desktop. The owner opens the pull request from the pushed branch.",
+  "note": "Plan row S3c, accepted with ADR-0004 on 2026-11-02. Starts after S2 (PR 4) and S3a (PR 2) are merged into main; runs the same night as S3b, S4 and S5a. The Desktop check of the golden values is the owner's step, hands-on work that waits until the project is unparked unless the owner rules otherwise; it closes the row."
+}

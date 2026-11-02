@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "task_id": "s3b-golden-reproduction",
+  "goal": "Prove that the compiler of ADR-0002, run on the S2 models, reproduces the publisher's golden values: every golden value the catalog can express is written as a structured query, compiled, run on the built warehouse and compared to docs/golden/golden.json, and every value it cannot express is listed with the reason. This is the deterministic half of the eval harness (S5b).",
+  "read_first": [
+    "AGENTS.md",
+    "docs/PLAN.md, row S3b",
+    "docs/decisions/0001-dataset-usaspending-epa-fy2025.md",
+    "docs/decisions/0002-structured-query-and-compiler.md",
+    "docs/contracts/star-schema.md",
+    "catalog/metrics.yaml and docs/catalog.md",
+    "docs/golden/golden.json, docs/warehouse.md and docs/sources.md",
+    "tasks/reports/s2-sqlmesh-models.md and tasks/reports/s3a-catalog-and-compiler.md, their open questions"
+  ],
+  "owned_paths": [
+    "src/agentic_bi/reproduce/",
+    "tests/reproduce/",
+    "evals/golden_queries.yaml",
+    "docs/reproduction.md",
+    "docs/sources.md, the two stale lines named in the S2 report (open point 3) only",
+    "tasks/reports/s3b-golden-reproduction.md"
+  ],
+  "out_of_scope": [
+    "any change to src/agentic_bi/semantic/, catalog/metrics.yaml, warehouse/, docs/golden/ or data/: the S4 session owns the compiler tonight; a compiler defect is reported, not fixed",
+    "new catalog metrics or dimensions, even when a golden value needs one: list it as not expressible",
+    "the agent, the verifier and the question set (S4, S5a)",
+    "pyproject.toml, uv.lock and any network call"
+  ],
+  "done_means": [
+    "evals/golden_queries.yaml maps each golden id to one structured query (the S3a schema) or to not_expressible with a one-line reason; all 48 ids appear exactly once",
+    "uv run python -m agentic_bi.reproduce --out data/tmp/reproduction.json builds the warehouse with agentic_bi.warehouse.build into data/tmp/, compiles and runs every mapped query through the read-only query connection, and writes golden, reproduced and difference per id",
+    "a pytest test does the same and fails on any difference: amounts and counts equal to the cent; ratios compared by a tolerance rule written in docs/reproduction.md and justified there (the golden file stores six decimal places)",
+    "at least 30 golden values are reproduced, including at least five derived ones, the 12 fiscal months, the five recipients, the top-10 reporting share and the obligations of the null competition code",
+    "a value that does not match is never mapped to a different query to make it pass; it stays failing in the report with both numbers, and the test marks it xfail with the reason",
+    "docs/reproduction.md explains the mapping, the tolerance rule, how to rerun, and the table of not-expressible values, each tagged as a candidate catalog change or as out of scope by design",
+    "uv run ruff check . && uv run ruff format --check . && uv run pytest -q && python3 scripts/commit_hygiene.py"
+  ],
+  "stop_and_report_when": [
+    "the warehouse does not build from main: report the error, change nothing under warehouse/",
+    "the compiler raises or returns a wrong value on a well-formed query: commit the failing case as xfail with the evidence and report it for the S4 owner",
+    "a dependency beyond the locked environment seems necessary"
+  ],
+  "hand_back": "The branch s3b-golden-reproduction, pushed to origin and never merged, with the report committed as tasks/reports/s3b-golden-reproduction.md: outcome, the verification output, the reproduction table (id, tag, golden, reproduced, difference), the not-expressible list, and any compiler finding. The owner opens the pull request from the pushed branch.",
+  "note": "Plan row S3b. Serves ADR-0001 and ADR-0002. Starts after S2 (PR 4) and S3a (PR 2) are merged into main. Runs the same night as S3c, S4 and S5a; owned paths do not overlap. evals/golden_queries.yaml is the reference S5b will compare the question set against."
+}
