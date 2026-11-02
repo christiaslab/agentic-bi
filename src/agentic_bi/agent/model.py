@@ -123,7 +123,10 @@ class AnthropicModel:
         try:
             response = self._client.messages.create(**request)
         except Exception as exc:  # the SDK's errors, mapped without leaking anything else
-            raise _model_error(exc, settings) from exc
+            mapped = _model_error(exc, settings)
+            if mapped is exc:
+                raise  # not the SDK's: unchanged, with the cause it came with
+            raise mapped from exc
         data = response.to_dict(mode="json")
         return ModelTurn(
             content=content_blocks(data.get("content") or []),

@@ -1,8 +1,10 @@
 """Every figure in the agent's text must appear in the rows of a query it ran.
 
 A figure is a number written in the text: ``$1,697,318,332.65``, ``6,016``, ``44.9%``,
-``1.70 billion``, ``-450``. Numbers that are part of a word or a code (``F108``, ``FY2025``,
-``Q3``, ``5th``, a UEI) are not figures, and ISO dates are checked as dates.
+``1.70 billion``, ``$1.7BN``, ``-450``, both ends of ``10-15%``. Numbers that are part of a
+word or a code (``F108``, ``FY2025``, ``Q3``, ``5th``, ``2.5x``, a UEI) are not figures, but a
+number written with a dollar sign always is, whatever follows it. ISO dates are checked as
+dates.
 
 A figure is grounded when either
 
@@ -38,17 +40,17 @@ from .answer import QueryRun
 _ISO_DATE = re.compile(r"(?<![\w.\-/])\d{4}-\d{2}-\d{2}(?![\w\-])")
 _NUMBER = re.compile(
     r"""
-    (?<![\w.,\-−/])
-    (?P<sign>[-−])?
-    \$?
-    (?P<sign2>[-−])?
+    (?<![\w.])                      # not inside a word, a code or a decimal
+    (?<![A-Za-z_][-\u2212/,])       # not joined to a word: top-5, COVID-19
+    (?P<sign>[-\u2212])?
+    (?P<currency>\$)?
+    (?P<sign2>[-\u2212])?
     (?P<digits>(?>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?))  # atomic: never "2" of "2.5x"
-    (?P<suffix>
-        \s?(?:%|percent\b|per\ cent\b)
-      | \s(?:thousand|million|billion|trillion)\b
-      | (?:k|K|m|M|bn|B)\b
+    (?:
+        (?P<tail>%|[A-Za-z]+)       # glued: 44.9%, 1.7bn, 5th, 2.5x
+      | \s(?P<word>(?i:percent|per\s+cent|thousand|million|billion|trillion))\b
+      | \s(?P<spaced>%)
     )?
-    (?!\w)
     """,
     re.VERBOSE,
 )
@@ -56,13 +58,16 @@ _SCALES = {
     "%": Decimal("0.01"),
     "percent": Decimal("0.01"),
     "per cent": Decimal("0.01"),
-    "thousand": Decimal(10) ** 3,
     "k": Decimal(10) ** 3,
-    "million": Decimal(10) ** 6,
+    "thousand": Decimal(10) ** 3,
     "m": Decimal(10) ** 6,
-    "billion": Decimal(10) ** 9,
-    "bn": Decimal(10) ** 9,
+    "mm": Decimal(10) ** 6,
+    "mn": Decimal(10) ** 6,
+    "million": Decimal(10) ** 6,
     "b": Decimal(10) ** 9,
+    "bn": Decimal(10) ** 9,
+    "billion": Decimal(10) ** 9,
+    "tn": Decimal(10) ** 12,
     "trillion": Decimal(10) ** 12,
 }
 _NUMERIC_TEXT = re.compile(r"-?\d+(?:\.\d+)?")
@@ -97,14 +102,20 @@ def find_figures(text: str) -> tuple[list[Figure], list[str]]:
     masked = _ISO_DATE.sub(lambda match: " " * len(match.group(0)), text)
     figures = []
     for match in _NUMBER.finditer(masked):
+        written = match.group("tail") or match.group("word") or match.group("spaced") or ""
+        suffix = " ".join(written.lower().split())
+        currency = match.group("currency") is not None
+        if suffix and suffix not in _SCALES:
+            if not currency:
+                continue  # glued to a word or a code (5th, 2.5x, 3D): not a figure
+            suffix = ""  # "$9.9xyz" is still an amount, read without the unknown tail
         digits = match.group("digits").replace(",", "")
         decimals = len(digits.split(".", 1)[1]) if "." in digits else 0
-        suffix = (match.group("suffix") or "").strip()
-        scale = _SCALES[suffix.lower()] if suffix else Decimal(1)
+        scale = _SCALES[suffix] if suffix else Decimal(1)
         negative = bool(match.group("sign") or match.group("sign2"))
         value = Decimal(digits) * scale * (-1 if negative else 1)
         tolerance = Decimal(5) * Decimal(10) ** (-decimals - 1) * scale
-        plain = not suffix and decimals == 0 and "$" not in match.group(0)
+        plain = not suffix and decimals == 0 and not currency
         figures.append(Figure(match.group(0).strip(), value, tolerance, plain))
     return figures, dates
 
