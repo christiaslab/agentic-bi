@@ -163,8 +163,8 @@ def test_build_request_passes_the_system_prompt_messages_and_tools_through() -> 
 def test_build_request_carries_the_four_project_tools_and_no_server_tool() -> None:
     tools = build()["tools"]
     assert [tool["name"] for tool in tools] == ["catalog", "schema", "run_query", "explain_measure"]
-    # a server tool has a versioned type and no input schema
-    assert all("input_schema" in tool and "type" not in tool for tool in tools)
+    # a server tool has a versioned type (such as web_search_20250305) and no input schema
+    assert all("input_schema" in tool and tool.get("type", "custom") == "custom" for tool in tools)
 
 
 def test_build_request_does_not_change_what_it_is_given() -> None:
@@ -549,9 +549,12 @@ def assert_no_secret_in(model_error: ModelError) -> None:
         assert header not in text
 
 
-@pytest.mark.parametrize(("error_class", "status", "fatal"), STATUS_ERRORS)
+@pytest.mark.parametrize(
+    ("error_class", "status"),
+    [pytest.param(*case.values[:2], id=case.id) for case in STATUS_ERRORS],
+)
 def test_a_model_error_from_a_status_error_never_holds_the_request_headers_or_a_key(
-    error_class: type[anthropic.APIStatusError], status: int, fatal: bool
+    error_class: type[anthropic.APIStatusError], status: int
 ) -> None:
     # the request that failed carried the key in its headers; the error must not
     assert_no_secret_in(raised_model_error(status_error(error_class, status)))
@@ -570,6 +573,16 @@ def test_an_error_that_is_not_the_sdks_passes_through_unchanged() -> None:
         call(StandInClient(error))
     assert caught.value is error
     assert not isinstance(caught.value, ModelError)
+
+
+def test_an_error_that_is_not_the_sdks_keeps_the_cause_it_came_with() -> None:
+    original = KeyError("the real cause")
+    error = ValueError("not from the SDK")
+    error.__cause__ = original
+    with pytest.raises(ValueError) as caught:
+        call(StandInClient(error))
+    assert caught.value is error
+    assert caught.value.__cause__ is original
 
 
 # --- ReplayModel ------------------------------------------------------------------------------
@@ -748,6 +761,33 @@ def test_replay_raises_when_the_previous_assistant_turn_did_not_go_back_unchange
         step(replay, messages)
 
 
+def test_replay_treats_a_request_that_holds_only_a_question_as_the_next_conversation() -> None:
+    replay = ReplayModel([text_turn("one"), text_turn("two")])
+    step(replay, [user("first question")])
+    second = step(replay, [user("second question")])
+    assert second.content == [{"type": "text", "text": "two"}]
+    assert [request["messages"] for request in replay.requests] == [
+        [user("first question")],
+        [user("second question")],
+    ]
+
+
+@pytest.mark.parametrize(
+    "history",
+    [
+        pytest.param(lambda first: [user("q"), user(results("toolu_1"))], id="no-assistant-turn"),
+        pytest.param(lambda first: [user("q"), assistant(first.content)], id="no-user-message"),
+    ],
+)
+def test_replay_raises_a_replay_error_when_the_history_is_too_short_for_the_previous_turn(
+    history: Callable[[ModelTurn], list[dict[str, Any]]],
+) -> None:
+    replay = ReplayModel([tool_turn(("toolu_1", "catalog", {})), text_turn()])
+    first = step(replay, [user("q")])
+    with pytest.raises(ReplayError):
+        step(replay, history(first))
+
+
 TWO_CALLS = tool_turn(("t1", "catalog", {}), ("t2", "schema", {"dimension": "psc"}))
 WRONG_RESULTS = [
     pytest.param(results("t2", "t1"), id="reversed"),
@@ -915,13 +955,15 @@ def test_the_model_must_be_a_non_empty_text(value: Any) -> None:
 
 @pytest.mark.parametrize("value", ["turbo", "", "High", None], ids=repr)
 def test_the_effort_must_be_one_the_api_knows(value: Any) -> None:
-    with pytest.raises(ValueError, match="effort must be one of low, medium, high, xhigh, max"):
+    with pytest.raises(ValueError, match="effort must be one of") as caught:
         AgentSettings(effort=value)
+    assert all(effort in str(caught.value) for effort in EFFORTS)
 
 
 @pytest.mark.parametrize("value", ["full", "", "Summarized", None], ids=repr)
 def test_the_thinking_display_must_be_summarized_or_omitted(value: Any) -> None:
-    with pytest.raises(ValueError, match="thinking_display must be one of summarized, omitted"):
+    assert THINKING_DISPLAYS == ("summarized", "omitted")
+    with pytest.raises(ValueError, match="thinking_display must be one of"):
         AgentSettings(thinking_display=value)
 
 

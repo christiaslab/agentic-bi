@@ -63,12 +63,12 @@ def test_the_prompt_states_the_coverage_dates() -> None:
     assert (spec.START_DATE, spec.END_DATE) == ("2024-10-01", "2025-09-30")
 
 
-def test_the_prompt_names_the_four_tools() -> None:
+def test_the_prompt_lists_the_four_tools_with_their_rules() -> None:
     assert TOOL_NAMES == ("catalog", "schema", "run_query", "explain_measure")
     assert [definition["name"] for definition in tool_definitions()] == list(TOOL_NAMES)
-    text = system_prompt()
+    lines = system_prompt().splitlines()
     for name in TOOL_NAMES:
-        assert f"`{name}`" in text, name
+        assert any(line.startswith(f"- `{name}`: ") for line in lines), name
 
 
 def test_the_prompt_states_the_tool_data_delimiter_rule() -> None:

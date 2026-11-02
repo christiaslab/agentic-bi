@@ -1081,6 +1081,33 @@ def test_a_query_that_times_out_is_an_error_result(synthetic_toolbox, monkeypatc
     assert outcome.refusal is None
 
 
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(SemanticError("only a single SELECT runs here"), id="semantic-error"),
+        pytest.param(duckdb.Error("the database failed"), id="database-error"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("tool", "arguments", "patched"),
+    [
+        pytest.param("run_query", {"metric": "obligations"}, "execute", id="run_query"),
+        pytest.param("schema", {"dimension": "recipient"}, "run_guarded", id="schema"),
+    ],
+)
+def test_an_unexpected_database_error_is_an_error_result_and_the_run_goes_on(
+    synthetic_toolbox, monkeypatch, tool: str, arguments: dict[str, Any], patched: str, error: Any
+) -> None:
+    def fails(*args: Any, **kwargs: Any) -> None:
+        raise error
+
+    monkeypatch.setattr(tools, patched, fails)
+    outcome = synthetic_toolbox.call(tool, arguments)
+    result = _assert_error_result(outcome, tool, "query_error")
+    assert result["message"] == str(error)
+    assert outcome.refusal is None
+
+
 def test_a_tool_box_uses_the_catalog_it_was_given(synthetic_conn) -> None:
     only_obligations = replace(
         CATALOG, metrics=MappingProxyType({"obligations": CATALOG.metrics["obligations"]})
