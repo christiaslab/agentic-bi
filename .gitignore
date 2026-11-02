@@ -27,3 +27,7 @@ warehouse/logs/
 !.env.example
 .DS_Store
 .worktrees/
+
+# Power BI Desktop project: the local model cache and per-user settings (ADR-0004 point 6)
+**/.pbi/cache.abf
+**/.pbi/localSettings.json
