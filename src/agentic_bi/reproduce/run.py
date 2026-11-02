@@ -35,6 +35,10 @@ DIFFERS = "differs"
 ERROR = "error"
 NOT_EXPRESSIBLE = "not_expressible"
 
+# unit of a golden value (docs/golden/golden.json) -> the catalog unit of a metric that can
+# reproduce it
+GOLDEN_UNITS = {"USD": "usd", "awards": "awards", "ratio": "share"}
+
 
 class SelectionError(ValueError):
     """The mapping's row selector does not pick exactly one row of the result."""
@@ -155,9 +159,19 @@ def _mapped(
     if isinstance(result, Exception):
         return Outcome(**base, status=ERROR, reason=_describe(result))
     traced = dict(sql=result.compiled.sql, params=tuple(result.compiled.params))
+    metric = catalog.metrics[entry.query.metric]
+    if GOLDEN_UNITS.get(value.unit) != metric.unit:
+        # the comparison rule follows the metric, so an amount mapped to a share metric would
+        # borrow the ratio tolerance; the units must agree first
+        return Outcome(
+            **base,
+            **traced,
+            status=ERROR,
+            reason=f"golden unit {value.unit!r} does not fit metric {metric.name} ({metric.unit})",
+        )
     try:
         reproduced = select_value(result, entry.row)
-        comparison = compare(catalog.metrics[entry.query.metric].kind, value.value, reproduced)
+        comparison = compare(metric.kind, value.value, reproduced)
     except (SelectionError, ComparisonError) as exc:
         return Outcome(**base, **traced, status=ERROR, reason=_describe(exc))
     return Outcome(
@@ -174,8 +188,8 @@ def _mapped(
 def _not_expressible(entry: NotExpressible, value, catalog: Catalog) -> Outcome:
     attempt = None
     if entry.attempt is not None:
-        # the nearest query must still be refused, with the code the mapping names; once the
-        # catalog can express the value, this outcome turns unexpected and the entry is due
+        # the nearest query must still be refused, with the code the mapping names; if the
+        # catalog gains exactly that metric or dimension, this outcome turns unexpected
         try:
             compile_query(entry.attempt.query, catalog)
             refusal = None
