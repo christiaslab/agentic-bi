@@ -117,3 +117,37 @@ def test_the_command_refuses_a_folder_outside_the_repository(tmp_path, capsys) -
 def test_the_command_refuses_a_dot_dot_escape(capsys) -> None:
     assert export.main(["--out", str(ROOT / "data" / ".." / ".." / "escape")]) == 1
     assert "outside" in capsys.readouterr().err
+
+
+def test_a_failed_check_leaves_the_output_folder_untouched(tmp_path) -> None:
+    database = tmp_path / "build" / "warehouse.duckdb"
+    wrong = tmp_path / "manifest.json"
+    wrong.write_text(json.dumps({"row_count": 1, "obligation_sum": "0.00"}), encoding="utf-8")
+    out = tmp_path / "model"
+    out.mkdir()
+    (out / "old.txt").write_text("old", encoding="utf-8")
+    with pytest.raises(PowerBIError, match="snapshot manifest"):
+        export.export(out=out, database=database, snapshot_manifest=wrong)
+    assert sorted(p.name for p in out.iterdir()) == ["old.txt"]
+    assert not [p for p in database.parent.iterdir() if p.name.startswith("export-")]
+
+
+@pytest.mark.parametrize("table", SCHEMA.tables, ids=lambda table: table.name)
+def test_text_keys_stay_distinct_without_case_or_trailing_spaces(table) -> None:
+    # Power BI compares text without case and joins keys without trailing spaces; DuckDB does
+    # neither. Keys that merged that way would make the DAX and the SQL count differently.
+    path = COMMITTED_DATA / f"{table.name}.parquet"
+    keys = [table.key] if table.key else ["transaction_key", "award_key", "reporting_uei"]
+    connection = duckdb.connect()
+    try:
+        for key in keys:
+            if table.column(key).type != "VARCHAR":
+                continue
+            exact, folded = connection.execute(
+                f'SELECT count(DISTINCT "{key}"), count(DISTINCT lower(rtrim("{key}"))) '
+                "FROM read_parquet(?)",
+                [str(path)],
+            ).fetchone()
+            assert exact == folded, (table.name, key)
+    finally:
+        connection.close()
