@@ -19,6 +19,8 @@ Status: built in S3a (2026-11-01) for [ADR-0002](decisions/0002-structured-query
 | `filters` | no, default `[]` | A list of `{field, op, value}`; all of them must hold |
 | `grain` | no, default `total` | The time breakdown |
 | `time_range` | no, default `null` | `{start, end}` as ISO dates, both ends included; `null` means every date held |
+| `order_by` | no, default `null` | `{field, direction}`: rank the rows by the metric (its name) or by one of the query's `dimensions`, `asc` or `desc` |
+| `limit` | no, default `null` | Keep the first 1 to 100 rows in the `order_by` order; needs `order_by` |
 
 Example: net obligations by fiscal month and award type, for award types A and B in fiscal year 2025.
 
@@ -49,6 +51,41 @@ ORDER BY "fiscal_year" ASC NULLS LAST, "fiscal_month" ASC NULLS LAST, "award_typ
 ```
 
 The output columns are the grain's columns, then the dimensions, then the metric.
+
+### Ordering and top-N
+
+Rows come in the default order: the grain's columns, then the dimensions, ascending, with empty (null) values last. `order_by` and `limit` were added by the [amendment to ADR-0002](decisions/0002-structured-query-and-compiler.md#amendment-2026-11-02-ordering-and-a-row-limit) so that top-N questions can be asked:
+
+- `order_by` puts its key first and keeps the default keys after it as tie-breakers, so a tie always comes out in the same order and a `limit` always keeps the same rows. Empty (null) values of the ranked key come last in both directions.
+- `order_by.field` is the metric's name or one of the query's `dimensions`, the output columns a row can be ranked by. A grain column, another metric or a physical column is refused as `invalid_query` with the field `order_by.field`. Time order needs no `order_by`: it is the default.
+- `limit` is an integer from 1 to 100 and needs `order_by`, so the rows it keeps are always the ones named, never the first ones by accident. Anything else is refused as `invalid_query` with the field `limit`. A `limit` above the number of groups returns them all.
+- The `limit` is bound as a parameter like every value: the SQL says `LIMIT ?`.
+- A query without `order_by` and `limit` compiles exactly as before the amendment.
+
+Example: the five recipients (at the parent level) with the largest net obligations in fiscal year 2025.
+
+```json
+{
+  "metric": "obligations",
+  "dimensions": ["recipient"],
+  "time_range": {"start": "2024-10-01", "end": "2025-09-30"},
+  "order_by": {"field": "obligations", "direction": "desc"},
+  "limit": 5
+}
+```
+
+It compiles to this SQL, with the parameters `[2024-10-01, 2025-09-30, 5]`:
+
+```sql
+SELECT
+    "f"."reporting_uei" AS "recipient",
+    sum("f"."obligation_amount") AS "obligations"
+FROM "fct_contract_transaction" AS "f"
+WHERE "f"."action_date" BETWEEN ? AND ?
+GROUP BY "f"."reporting_uei"
+ORDER BY "obligations" DESC NULLS LAST, "recipient" ASC NULLS LAST
+LIMIT ?
+```
 
 ## Metrics
 

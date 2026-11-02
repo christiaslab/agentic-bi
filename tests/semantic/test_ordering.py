@@ -7,6 +7,7 @@ fiscal year 2025 only (T16 is in fiscal year 2024).
 import datetime as dt
 import json
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -346,3 +347,13 @@ def test_ordering_reorders_rows_and_never_changes_a_value(run) -> None:
     ordered = run(_top5(limit=MAX_LIMIT))
     assert ordered == sorted(every, key=lambda row: (-row[1], row[0]))
     assert len(ordered) == len(every) == 12
+
+
+def test_the_top_n_example_in_the_catalog_guide_compiles_to_the_sql_shown() -> None:
+    guide = (Path(__file__).resolve().parents[2] / "docs" / "catalog.md").read_text("utf-8")
+    section = guide.split("### Ordering and top-N", 1)[1].split("\n## ", 1)[0]
+    example = json.loads(section.split("```json\n", 1)[1].split("```", 1)[0])
+    sql = section.split("```sql\n", 1)[1].split("```", 1)[0].strip()
+    compiled = compile(example)
+    assert compiled.sql == sql == TOP5_SQL
+    assert compiled.params == [dt.date(2024, 10, 1), dt.date(2025, 9, 30), 5]
