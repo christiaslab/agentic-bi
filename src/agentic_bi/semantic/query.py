@@ -1,11 +1,13 @@
 """The structured query of ADR-0002 point 1 and its JSON schema.
 
-The agent never writes SQL; it emits ``{metric, dimensions, filters, grain, time_range}``.
+The agent never writes SQL; it emits ``{metric, dimensions, filters, grain, time_range}``,
+with an optional ``order_by`` and ``limit`` for top-N questions (the ADR's amendment).
 ``QUERY_JSON_SCHEMA`` is the shape, exported for tool definitions. ``parse_query`` checks a
 decoded JSON value against exactly that shape, with no third-party validator, and raises a
 ``QueryValidationError`` whose ``field`` names the offending part, for example
 ``filters[0].value``. Whether the names exist in the catalog is the compiler's question, not
-this module's.
+this module's; that ``order_by`` names the metric or a requested dimension, and that ``limit``
+comes with an ``order_by``, is a check on the query itself, made here (``check_ordering``).
 """
 
 from __future__ import annotations
@@ -20,6 +22,8 @@ from typing import Any
 from .errors import MalformedTimeRangeError, QueryValidationError
 
 MAX_FILTER_VALUES = 100
+MAX_LIMIT = 100
+DIRECTIONS = ("asc", "desc")
 # ASCII digits only; fullmatch, so a trailing newline is refused too.
 _ISO_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
@@ -91,6 +95,37 @@ QUERY_JSON_SCHEMA: dict[str, Any] = {
                 },
             ],
         },
+        "order_by": {
+            "description": (
+                "Order of the rows: the metric (by its name) or one of the requested dimensions, "
+                "ascending or descending. Ties, and every row when null, keep the default order: "
+                "time grain, then dimensions, ascending."
+            ),
+            "default": None,
+            "oneOf": [
+                {"type": "null"},
+                {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["field", "direction"],
+                    "properties": {
+                        "field": {
+                            **_NAME,
+                            "description": "The metric's name or one of the query's dimensions.",
+                        },
+                        "direction": {"type": "string", "enum": list(DIRECTIONS)},
+                    },
+                },
+            ],
+        },
+        "limit": {
+            "description": (
+                f"How many rows to keep, from 1 to {MAX_LIMIT}, counted in the order of order_by, "
+                "which it needs; null keeps every row."
+            ),
+            "default": None,
+            "oneOf": [{"type": "null"}, {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT}],
+        },
     },
 }
 
@@ -113,16 +148,30 @@ class TimeRange:
 
 
 @dataclass(frozen=True)
+class OrderBy:
+    """Rows ordered by ``field`` (the metric or a requested dimension), ``asc`` or ``desc``."""
+
+    field: str
+    direction: str
+
+
+@dataclass(frozen=True)
 class StructuredQuery:
     metric: str
     dimensions: tuple[str, ...] = ()
     filters: tuple[Filter, ...] = ()
     grain: str = "total"
     time_range: TimeRange | None = field(default=None)
+    order_by: OrderBy | None = None
+    limit: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        """The query as a JSON-ready value that ``parse_query`` reads back unchanged."""
-        return {
+        """The query as a JSON-ready value that ``parse_query`` reads back unchanged.
+
+        ``order_by`` and ``limit`` appear only when set, so a query without them has the
+        same value as before the amendment that added them.
+        """
+        data: dict[str, Any] = {
             "metric": self.metric,
             "dimensions": list(self.dimensions),
             "filters": [
@@ -141,6 +190,11 @@ class StructuredQuery:
                 "end": self.time_range.end.isoformat(),
             },
         }
+        if self.order_by is not None:
+            data["order_by"] = {"field": self.order_by.field, "direction": self.order_by.direction}
+        if self.limit is not None:
+            data["limit"] = self.limit
+        return data
 
 
 def query_json_schema() -> dict[str, Any]:
@@ -157,13 +211,44 @@ def parse_query(data: Any) -> StructuredQuery:
             raise QueryValidationError(str(key), "is not a field of the structured query")
     if "metric" not in data:
         raise QueryValidationError("metric", "is required")
-    return StructuredQuery(
+    query = StructuredQuery(
         metric=_name(data["metric"], "metric"),
         dimensions=_dimensions(data.get("dimensions", [])),
         filters=_filters(data.get("filters", [])),
         grain=_name(data.get("grain", "total"), "grain"),
         time_range=_time_range(data.get("time_range")),
+        order_by=_order_by(data.get("order_by")),
+        limit=_limit(data.get("limit")),
     )
+    check_ordering(query)
+    return query
+
+
+def check_ordering(query: StructuredQuery) -> None:
+    """Refuse an ``order_by`` or ``limit`` the query cannot honour.
+
+    ``order_by`` must name the metric or one of the query's dimensions, the output columns a
+    row can be ranked by; time order is the default order. A ``limit`` needs an ``order_by``,
+    so the rows it keeps are always the ones named, never the first ones by accident. The
+    compiler calls this too, for a ``StructuredQuery`` built without ``parse_query``.
+    """
+    order_by = query.order_by
+    if order_by is not None:
+        if order_by.field != query.metric and order_by.field not in query.dimensions:
+            choices = ", ".join([query.metric, *query.dimensions])
+            raise QueryValidationError(
+                "order_by.field",
+                f"{order_by.field!r} is neither the metric nor a requested dimension; "
+                f"order by one of: {choices}",
+            )
+        if order_by.direction not in DIRECTIONS:
+            raise QueryValidationError("order_by.direction", "expected asc or desc")
+    if query.limit is not None:
+        _limit(query.limit)
+        if order_by is None:
+            raise QueryValidationError(
+                "limit", "needs order_by, the field the rows are ranked by before they are cut"
+            )
 
 
 def _name(value: Any, where: str) -> str:
@@ -255,3 +340,30 @@ def _time_range(value: Any) -> TimeRange | None:
     if start > end:
         raise MalformedTimeRangeError("time_range", "start is after end")
     return TimeRange(start, end)
+
+
+def _order_by(value: Any) -> OrderBy | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise QueryValidationError("order_by", "expected an object with field and direction")
+    for key in value:
+        if key not in ("field", "direction"):
+            raise QueryValidationError(f"order_by.{key}", "is not a field of order_by")
+    for key in ("field", "direction"):
+        if key not in value:
+            raise QueryValidationError(f"order_by.{key}", "is required")
+    name = _name(value["field"], "order_by.field")
+    direction = value["direction"]
+    if not isinstance(direction, str) or direction not in DIRECTIONS:
+        raise QueryValidationError("order_by.direction", "expected asc or desc")
+    return OrderBy(field=name, direction=direction)
+
+
+def _limit(value: Any) -> int | None:
+    if value is None:
+        return None
+    # bool is an int in Python and DuckDB binds True as 1; it is refused by type
+    if type(value) is not int or not 1 <= value <= MAX_LIMIT:
+        raise QueryValidationError("limit", f"expected an integer from 1 to {MAX_LIMIT}")
+    return value

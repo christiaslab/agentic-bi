@@ -1,0 +1,104 @@
+{
+  "replay": 1,
+  "provenance": "hand-written",
+  "note": "Hand-written on 2026-11-02 from the tool definitions in src/agentic_bi/agent/tools.py, to drive the real tool layer offline on the warehouse built from the committed snapshot. No model produced these turns and they are not model output; the figures in the final reply were copied from the rows the tools return.",
+  "id": "q11-top5-states",
+  "question": "Which five states had the most net obligations for work performed there in FY2025?",
+  "covers": [
+    "dimension pop_state",
+    "order_by and limit"
+  ],
+  "expect": {
+    "status": "answered",
+    "queries": 1,
+    "golden": [
+      {
+        "id": "obligations.pop_state.CA",
+        "run": 0,
+        "where": {
+          "pop_state": "CA"
+        },
+        "text": "$238,749,959.14"
+      },
+      {
+        "id": "obligations.pop_state.OH",
+        "run": 0,
+        "where": {
+          "pop_state": "OH"
+        },
+        "text": "$169,208,815.00"
+      },
+      {
+        "id": "obligations.pop_state.VA",
+        "run": 0,
+        "where": {
+          "pop_state": "VA"
+        },
+        "text": "$160,568,186.52"
+      },
+      {
+        "id": "obligations.pop_state.DC",
+        "run": 0,
+        "where": {
+          "pop_state": "DC"
+        },
+        "text": "$138,024,824.27"
+      },
+      {
+        "id": "obligations.pop_state.TX",
+        "run": 0,
+        "where": {
+          "pop_state": "TX"
+        },
+        "text": "$102,283,702.42"
+      }
+    ]
+  },
+  "turns": [
+    {
+      "stop_reason": "tool_use",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_q11_1",
+          "name": "catalog",
+          "input": {}
+        }
+      ]
+    },
+    {
+      "stop_reason": "tool_use",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_q11_2",
+          "name": "run_query",
+          "input": {
+            "metric": "obligations",
+            "dimensions": [
+              "pop_state"
+            ],
+            "time_range": {
+              "start": "2024-10-01",
+              "end": "2025-09-30"
+            },
+            "order_by": {
+              "field": "obligations",
+              "direction": "desc"
+            },
+            "limit": 5
+          }
+        }
+      ]
+    },
+    {
+      "stop_reason": "end_turn",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"status\": \"answered\", \"answer\": \"The five states with the most net obligations for work performed there in fiscal year 2025 were CA ($238,749,959.14), OH ($169,208,815.00), VA ($160,568,186.52), DC ($138,024,824.27) and TX ($102,283,702.42).\"}"
+        }
+      ]
+    }
+  ]
+}

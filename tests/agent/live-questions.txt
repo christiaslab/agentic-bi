@@ -1,0 +1,20 @@
+# Questions for the owner's live session (docs/agent.md, Run it live).
+# The same questions as the hand-written replays in this directory, in the same order,
+# so that each live transcript can be read next to its replay. One question per line.
+
+What were EPA's net contract obligations in fiscal year 2025?
+How many contract awards were active in fiscal year 2025?
+What was the average net obligation per active award in FY2025?
+What share of net obligations went to the ten largest recipients in FY2025?
+What share of FY2025 contract obligations was competed?
+How did net obligations move month by month across fiscal year 2025?
+Who were the five largest recipients by net obligations in FY2025?
+How much was obligated for work performed in California in FY2025?
+Which NAICS industry received the most net obligations in FY2025, and how many awards were active in it?
+How were FY2025 net obligations split by extent-competed code?
+Which five states had the most net obligations for work performed there in FY2025?
+Which five product and service codes had the most net obligations in FY2025?
+How many new contract awards did EPA make in fiscal year 2025?
+Break down FY2025 obligations by the recipient's city.
+What did EPA obligate on contracts in fiscal year 2023?
+What is the top-10 supplier concentration for each recipient?
