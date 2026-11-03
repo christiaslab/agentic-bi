@@ -1,0 +1,28 @@
+{
+  "replay_id": "should-refuse-ambiguous-best-month",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. q57, ambiguous, answered by picking obligations.",
+  "prompt_version": "v1",
+  "question_id": "q57",
+  "question": "Which was the best month?",
+  "query": {
+    "metric": "obligations",
+    "grain": "fiscal_month",
+    "order_by": {
+      "field": "obligations",
+      "direction": "desc"
+    },
+    "limit": 1
+  },
+  "response": {
+    "verdict": "refuse_expected",
+    "issues": [
+      {
+        "code": "should_refuse",
+        "field": null,
+        "explanation": "The question names no measure; obligations, award count and the rates would each give a different best month."
+      }
+    ],
+    "rationale": "The question is ambiguous in a way the catalog cannot settle; the agent should ask which measure."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "replay_id": "malformed-prose-answer",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. A judge answer in prose, which the verifier must treat as an error, never as a pass.",
+  "prompt_version": "v1",
+  "question_id": "q25",
+  "question": "What was the average net obligation per active award in FY2025?",
+  "query": {
+    "metric": "avg_award_value",
+    "time_range": {
+      "start": "2024-10-01",
+      "end": "2025-09-30"
+    }
+  },
+  "response": "The query looks right to me."
+}

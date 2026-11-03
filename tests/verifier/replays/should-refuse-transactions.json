@@ -1,0 +1,26 @@
+{
+  "replay_id": "should-refuse-transactions",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. q46, out of catalog, answered with a substitute metric.",
+  "prompt_version": "v1",
+  "question_id": "q46",
+  "question": "How many contract transactions did EPA record in FY2025?",
+  "query": {
+    "metric": "award_count",
+    "time_range": {
+      "start": "2024-10-01",
+      "end": "2025-09-30"
+    }
+  },
+  "response": {
+    "verdict": "refuse_expected",
+    "issues": [
+      {
+        "code": "should_refuse",
+        "field": "metric",
+        "explanation": "The question counts transactions, which no catalog metric measures; award_count counts awards and is a substitute."
+      }
+    ],
+    "rationale": "The catalog has no transaction count, so the agent should refuse rather than count awards."
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "replay_id": "wrong-metric-award-count",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. q21 answered with obligations instead of award_count.",
+  "prompt_version": "v1",
+  "question_id": "q21",
+  "question": "How many contract awards were active in fiscal year 2025?",
+  "query": {
+    "metric": "obligations",
+    "time_range": {
+      "start": "2024-10-01",
+      "end": "2025-09-30"
+    }
+  },
+  "response": {
+    "verdict": "inconsistent",
+    "issues": [
+      {
+        "code": "wrong_metric",
+        "field": "metric",
+        "explanation": "The question counts awards active in the period; the query sums net obligations."
+      }
+    ],
+    "rationale": "Award count and obligations are different catalog metrics."
+  }
+}

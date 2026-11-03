@@ -1,0 +1,16 @@
+{
+  "replay_id": "consistent-total-obligations-null-range",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. q02 answered with a null time range, which equals the slice; judged consistent.",
+  "prompt_version": "v1",
+  "question_id": "q02",
+  "question": "How much did the EPA obligate on contracts in FY2025, counting de-obligations as negative amounts?",
+  "query": {
+    "metric": "obligations"
+  },
+  "response": {
+    "verdict": "consistent",
+    "issues": [],
+    "rationale": "A null time range is the whole slice, which is fiscal year 2025, so net obligations over it answer the question."
+  }
+}

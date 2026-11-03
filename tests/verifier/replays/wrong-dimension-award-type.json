@@ -1,0 +1,29 @@
+{
+  "replay_id": "wrong-dimension-award-type",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. q09 grouped by the wrong dimension.",
+  "prompt_version": "v1",
+  "question_id": "q09",
+  "question": "How much was obligated under each contract award type in FY2025?",
+  "query": {
+    "metric": "obligations",
+    "dimensions": [
+      "sub_agency"
+    ],
+    "time_range": {
+      "start": "2024-10-01",
+      "end": "2025-09-30"
+    }
+  },
+  "response": {
+    "verdict": "inconsistent",
+    "issues": [
+      {
+        "code": "wrong_dimension",
+        "field": "dimensions",
+        "explanation": "The question asks for a breakdown by award type; the query groups by sub-agency."
+      }
+    ],
+    "rationale": "The breakdown does not match the question."
+  }
+}

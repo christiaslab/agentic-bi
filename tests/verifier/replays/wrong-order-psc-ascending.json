@@ -1,0 +1,30 @@
+{
+  "replay_id": "wrong-order-psc-ascending",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. q37 ranked in the wrong direction.",
+  "prompt_version": "v1",
+  "question_id": "q37",
+  "question": "Which five product and service codes had the highest net obligations?",
+  "query": {
+    "metric": "obligations",
+    "dimensions": [
+      "psc"
+    ],
+    "order_by": {
+      "field": "obligations",
+      "direction": "asc"
+    },
+    "limit": 5
+  },
+  "response": {
+    "verdict": "inconsistent",
+    "issues": [
+      {
+        "code": "wrong_order",
+        "field": "order_by",
+        "explanation": "The question asks for the highest five; the query orders ascending and returns the lowest five."
+      }
+    ],
+    "rationale": "The ranking runs the wrong way."
+  }
+}

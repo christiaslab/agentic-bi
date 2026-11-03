@@ -1,0 +1,29 @@
+{
+  "replay_id": "wrong-filter-psc",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. q16 filtered on the wrong code.",
+  "prompt_version": "v1",
+  "question_id": "q16",
+  "question": "What were net obligations for product and service code F108?",
+  "query": {
+    "metric": "obligations",
+    "filters": [
+      {
+        "field": "psc",
+        "op": "eq",
+        "value": "F999"
+      }
+    ]
+  },
+  "response": {
+    "verdict": "inconsistent",
+    "issues": [
+      {
+        "code": "wrong_filter",
+        "field": "filters[0]",
+        "explanation": "The question names product and service code F108; the query filters on F999."
+      }
+    ],
+    "rationale": "The filter value differs from the code in the question."
+  }
+}

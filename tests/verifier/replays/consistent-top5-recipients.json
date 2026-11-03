@@ -1,0 +1,28 @@
+{
+  "replay_id": "consistent-top5-recipients",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. The expected top-N query of q35, judged consistent.",
+  "prompt_version": "v1",
+  "question_id": "q35",
+  "question": "Which five recipients received the most net contract obligations in FY2025?",
+  "query": {
+    "metric": "obligations",
+    "dimensions": [
+      "recipient"
+    ],
+    "time_range": {
+      "start": "2024-10-01",
+      "end": "2025-09-30"
+    },
+    "order_by": {
+      "field": "obligations",
+      "direction": "desc"
+    },
+    "limit": 5
+  },
+  "response": {
+    "verdict": "consistent",
+    "issues": [],
+    "rationale": "The question ranks recipients by net obligations and keeps five; the query groups by recipient, orders by obligations descending and limits to five."
+  }
+}

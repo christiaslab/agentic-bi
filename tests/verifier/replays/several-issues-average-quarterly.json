@@ -1,0 +1,32 @@
+{
+  "replay_id": "several-issues-average-quarterly",
+  "provenance": "hand_written",
+  "note": "Written by hand from the verdict schema to exercise the verifier; not model output. q27 with two faults at once.",
+  "prompt_version": "v1",
+  "question_id": "q27",
+  "question": "What was the average award value of definitive contracts in each fiscal quarter of FY2025?",
+  "query": {
+    "metric": "avg_award_value",
+    "grain": "fiscal_month",
+    "time_range": {
+      "start": "2024-10-01",
+      "end": "2025-09-30"
+    }
+  },
+  "response": {
+    "verdict": "inconsistent",
+    "issues": [
+      {
+        "code": "missing_filter",
+        "field": "filters",
+        "explanation": "The question restricts to definitive contracts (award type D); the query has no award type filter."
+      },
+      {
+        "code": "wrong_grain",
+        "field": "grain",
+        "explanation": "The question asks for each fiscal quarter; the query breaks down by fiscal month."
+      }
+    ],
+    "rationale": "Both the selection and the breakdown differ from the question."
+  }
+}
