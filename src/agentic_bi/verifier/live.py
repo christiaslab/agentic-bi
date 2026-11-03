@@ -63,7 +63,7 @@ class AnthropicJudge:
 
 def _default_client() -> Any:
     try:
-        import anthropic  # noqa: PLC0415 - optional until S4 adds the client library
+        import anthropic  # noqa: PLC0415 - imported only when a live judge runs
     except ImportError as exc:
         raise LiveJudgeUnavailable(
             "the anthropic client library is not installed in this environment; it arrives "

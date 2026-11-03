@@ -69,9 +69,9 @@ A `Judge` turns a request into the model's raw text; the verifier parses it.
 - `ReplayJudge` serves recorded answers from a directory of replay files, matched on the question, the query (key order ignored) and the prompt version. A request with no replay is an error. The replays in `tests/verifier/replays/` are written by hand and say so; they prove the plumbing, not the model.
 - `AnthropicJudge` makes one Messages API call: the versioned system prompt, one user message, low effort. The default model is `claude-haiku-5-5`; `AGENTIC_BI_VERIFIER_MODEL` or `--model` changes it. It takes its client by injection (the tests pass a fake) or imports the `anthropic` library when built without one. That library arrives with S4; until it is installed, a live judge cannot be built and the command says so. Any error of the call itself (network, authentication, rate limit) becomes a `JudgeError` naming only the error's type: a failed run, never a verdict. S5b wires the live judge into the eval run with the pinned model and the spend cap.
 
-## Top-N queries before S4
+## Top-N queries
 
-`order_by` and `limit` join the structured query with S4. Until then `parse_query` refuses them, and the checks read them by a provisional rule from the S4 brief: `order_by` is `{field, direction}`, with the field the metric or a requested dimension and the direction `asc` or `desc`; `limit` is an integer from 1 to 100 and needs an `order_by`. The rest of the query is checked as usual. Once the structured query accepts the two fields, the schema and compiler decide and this rule is never reached.
+`order_by` and `limit` are part of the structured query (the amendment to ADR-0002), so `parse_query` and the compiler check them like any other field: `order_by` is `{field, direction}`, with the field the metric or a requested dimension and the direction `asc` or `desc`; `limit` is an integer from 1 to 100 and needs an `order_by`. A query that passes reports the two as `top_n` in its check result.
 
 ## Running it
 

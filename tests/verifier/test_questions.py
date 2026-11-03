@@ -7,9 +7,8 @@ import pytest
 import yaml
 
 from agentic_bi.semantic import compile, default_catalog, parse_query
-from agentic_bi.semantic.errors import QueryValidationError
 from agentic_bi.verifier import SLICE, run_checks
-from agentic_bi.verifier.checks import MAX_LIMIT, MIN_LIMIT, TOP_N_FIELDS
+from agentic_bi.verifier.checks import MAX_LIMIT, MIN_LIMIT
 from agentic_bi.verifier.questions import (
     DEFAULT_QUESTIONS_PATH,
     QuestionSetError,
@@ -128,19 +127,21 @@ def test_every_expected_query_without_top_n_passes_the_schema_and_compiles(
     assert checked >= 30
 
 
-def test_top_n_queries_fail_only_on_the_fields_s4_adds(question_set) -> None:
+def test_top_n_queries_parse_and_compile_with_their_order_and_limit(question_set) -> None:
     catalog = default_catalog()
+    checked = 0
     for q in question_set.questions:
         if not q.needs_top_n:
             continue
-        try:
-            parse_query(q.query)
-        except QueryValidationError as exc:
-            assert exc.field in TOP_N_FIELDS, q.id
-        compile(q.base_query(), catalog)
+        query = parse_query(q.query)
+        assert query.order_by is not None and query.limit is not None, q.id
+        compiled = compile(query, catalog)
+        assert compiled.params[-1] == query.limit, q.id
+        checked += 1
+    assert checked == 11
 
 
-def test_top_n_queries_follow_the_provisional_order_by_rule(question_set) -> None:
+def test_top_n_queries_follow_the_order_by_rule(question_set) -> None:
     for q in question_set.questions:
         if not q.needs_top_n:
             continue

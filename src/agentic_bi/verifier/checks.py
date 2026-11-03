@@ -14,12 +14,10 @@ date error on an answerable one ("fiscal 2025" sent as October 2024 to October 2
 not claim the question should be refused. A query that passes all three goes to the judge,
 which decides intent.
 
-Top-N fields. ADR-0002 is being amended in S4 to add ``order_by`` and ``limit``. Until that
-lands, a query carrying them fails ``parse_query`` on exactly that field; the checks then read
-them with the provisional rule below and check the rest of the query as usual. Once the
-structured query accepts them natively, ``parse_query`` and ``compile`` decide, and the
-provisional rule is never reached. The rule follows the S4 brief: ``order_by`` names the
-metric or a requested dimension, ascending or descending; ``limit`` is 1 to 100.
+Top-N fields. ``order_by`` and ``limit`` are part of the structured query (the amendment to
+ADR-0002): ``parse_query`` checks them like any other field. ``order_by`` names the metric or a
+requested dimension, ascending or descending; ``limit`` is 1 to 100 and needs an ``order_by``.
+The checks report them as ``top_n`` so the judge and the report can show the cut.
 """
 
 from __future__ import annotations
@@ -32,22 +30,21 @@ from typing import Any
 from agentic_bi.ingest import spec
 from agentic_bi.semantic import Catalog, compile, default_catalog, parse_query
 from agentic_bi.semantic.errors import QueryRefusal, QueryValidationError
-from agentic_bi.semantic.query import StructuredQuery, TimeRange
+from agentic_bi.semantic.query import DIRECTIONS, StructuredQuery, TimeRange
+from agentic_bi.semantic.query import MAX_LIMIT as MAX_LIMIT
 
 from .verdict import Issue, Verdict, check_verdict_rules
 
 SLICE = TimeRange(dt.date.fromisoformat(spec.START_DATE), dt.date.fromisoformat(spec.END_DATE))
 
 TOP_N_FIELDS = ("order_by", "limit")
-ORDER_DIRECTIONS = ("asc", "desc")
+ORDER_DIRECTIONS = DIRECTIONS
 MIN_LIMIT = 1
-MAX_LIMIT = 100
-_UNKNOWN_FIELD = "is not a field of the structured query"
 
 
 @dataclass(frozen=True)
 class TopN:
-    """The provisional reading of ``order_by`` and ``limit`` (see the module docstring)."""
+    """The ``order_by`` and ``limit`` of a checked query (see the module docstring)."""
 
     field: str | None
     direction: str | None
@@ -104,34 +101,16 @@ def run_checks(
     if not isinstance(data, Mapping):
         return CheckResult((_invalid("query", "expected an object", "invalid_query"),), None)
 
-    base: Mapping[str, Any] = data
-    top_n: TopN | None = None
     issues: list[Issue] = []
     try:
-        parse_query(data)
-    except QueryValidationError as exc:
-        if exc.field in TOP_N_FIELDS and exc.message == _UNKNOWN_FIELD:
-            base = {key: value for key, value in data.items() if key not in TOP_N_FIELDS}
-            top_n, top_n_issue = _provisional_top_n(data)
-            if top_n_issue is not None:
-                issues.append(top_n_issue)
-        # Any other schema error surfaces again below, from the base query.
-
-    try:
-        query = parse_query(base)
+        query = parse_query(data)
     except QueryValidationError as exc:
         return CheckResult((_invalid(exc.field, exc.message, exc.code),), None)
 
-    if top_n is not None and top_n.field is not None:
-        allowed = (query.metric, *query.dimensions)
-        if top_n.field not in allowed:
-            issues.append(
-                _invalid(
-                    "order_by.field",
-                    f"{top_n.field!r} is neither the metric nor a requested dimension",
-                    "invalid_query",
-                )
-            )
+    # parse_query refuses a limit without an order_by, so order_by alone marks a top-N query.
+    top_n: TopN | None = None
+    if query.order_by is not None:
+        top_n = TopN(query.order_by.field, query.order_by.direction, query.limit)
 
     try:
         compile(query, catalog)
@@ -153,45 +132,6 @@ def run_checks(
 
 def _invalid(field: str, message: str, refusal_code: str) -> Issue:
     return Issue(code="invalid_query", field=field, explanation=message, refusal_code=refusal_code)
-
-
-def _provisional_top_n(data: Mapping[str, Any]) -> tuple[TopN, Issue | None]:
-    order_by = data.get("order_by")
-    limit = data.get("limit")
-    field: str | None = None
-    direction: str | None = None
-    if "order_by" in data:
-        if not isinstance(order_by, Mapping):
-            return TopN(None, None, None), _invalid(
-                "order_by", "expected an object with field and direction", "invalid_query"
-            )
-        for key in order_by:
-            if key not in ("field", "direction"):
-                return TopN(None, None, None), _invalid(
-                    f"order_by.{key}", "is not a field of order_by", "invalid_query"
-                )
-        field = order_by.get("field")
-        direction = order_by.get("direction")
-        if not isinstance(field, str) or not 1 <= len(field) <= 64:
-            return TopN(None, None, None), _invalid(
-                "order_by.field", "expected the metric or a requested dimension", "invalid_query"
-            )
-        if direction not in ORDER_DIRECTIONS:
-            return TopN(None, None, None), _invalid(
-                "order_by.direction", "expected asc or desc", "invalid_query"
-            )
-    if "limit" in data:
-        if type(limit) is not int or not MIN_LIMIT <= limit <= MAX_LIMIT:
-            return TopN(field, direction, None), _invalid(
-                "limit", f"expected an integer from {MIN_LIMIT} to {MAX_LIMIT}", "invalid_query"
-            )
-        if "order_by" not in data:
-            return TopN(None, None, limit), _invalid(
-                "limit",
-                "a limit needs an order_by, or the rows it keeps are arbitrary",
-                "invalid_query",
-            )
-    return TopN(field, direction, limit), None
 
 
 def _slice_issue(query: StructuredQuery, slice_range: TimeRange) -> tuple[Issue | None, str | None]:

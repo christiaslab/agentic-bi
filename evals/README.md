@@ -23,7 +23,7 @@ The file holds `version: 1` and a list `questions`. Each question has:
 | `golden_id` | no, answers only | One id, or a list, from `docs/golden/golden.json` that the expected query's result should reproduce. See below. |
 | `paraphrase_group` | no | A name shared by questions that ask the same thing in other words. All members have the same expected outcome, query and golden ids. |
 
-`src/agentic_bi/verifier/questions.py` loads the file strictly: an unknown key, a missing field, a refusal with a query, an unknown golden id or a top-N query without `requires: [top_n]` is an error. `tests/verifier/test_questions.py` checks the coverage below and compiles every expected query that needs no top-N.
+`src/agentic_bi/verifier/questions.py` loads the file strictly: an unknown key, a missing field, a refusal with a query, an unknown golden id or a top-N query without `requires: [top_n]` is an error. `tests/verifier/test_questions.py` checks the coverage below and compiles every expected query, top-N included.
 
 ## How golden_id links to docs/golden/golden.json
 
@@ -55,7 +55,7 @@ At the time of writing (the tests enforce the minimums):
 
 S5b runs the analyst agent on each question and records the agent's structured query, or its refusal. Three scores, reported separately and never blended into one number.
 
-1. **Intent accuracy** on `outcome: answer` questions: the share whose agent query equals the expected query after normalisation. Normalisation fills defaults (`dimensions: []`, `filters: []`, `grain: total`, `time_range: null`), treats a null time range and 2024-10-01 to 2025-09-30 as the same, ignores the order of dimensions and of filters, treats `in` with one value as `eq`, and sorts the values of `in` and `not_in`. Questions marked `requires: [top_n]` are scored only once `order_by` and `limit` are on `main` (S4); until then they are reported as skipped, not as failed. An answer the agent refused counts as a miss and is listed.
+1. **Intent accuracy** on `outcome: answer` questions: the share whose agent query equals the expected query after normalisation. Normalisation fills defaults (`dimensions: []`, `filters: []`, `grain: total`, `time_range: null`), treats a null time range and 2024-10-01 to 2025-09-30 as the same, ignores the order of dimensions and of filters, treats `in` with one value as `eq`, and sorts the values of `in` and `not_in`. Questions marked `requires: [top_n]` also compare `order_by` and `limit`. An answer the agent refused counts as a miss and is listed.
 2. **Verifier agreement** on the same answers: the share the verifier judges `consistent`. Where exact match fails but the verifier says `consistent`, the pair is listed for the owner: either the expected query is too narrow or the verifier too lenient. The verifier is first run on the expected queries themselves (all should come back `consistent`) and on the hand-written wrong queries of `tests/verifier/replays/` (each should come back with its code); its agreement on the agent's queries is trusted only as far as those runs go.
 3. **Refusal behaviour**: on `outcome: refuse` questions, the share the agent refuses (recall); on `outcome: answer` questions, the share it answers rather than refuses (the false-refusal rate is one minus this). Both are broken down by `refusal_reason`. A refusal for a reason the catalog does not support (for example refusing a question about California as "outside the slice") is listed.
 

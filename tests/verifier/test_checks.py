@@ -1,4 +1,4 @@
-"""The deterministic checks: schema, catalog and slice, with the provisional top-N rule."""
+"""The deterministic checks: schema, catalog and slice, and the top-N fields they report."""
 
 import datetime as dt
 from typing import Any
@@ -269,7 +269,7 @@ def test_a_custom_slice_is_honoured() -> None:
     assert run_checks(query).passed
 
 
-# --- The provisional top-N rule ---------------------------------------------------------
+# --- Top-N: order_by and limit ---------------------------------------------------------
 
 
 def test_top_5_recipients_by_obligations_passes_and_returns_a_top_n() -> None:
@@ -323,7 +323,8 @@ def test_top_n_query_is_still_checked_against_the_catalog_and_slice() -> None:
         ),
         ({"order_by": "obligations"}, "order_by"),
         ({"order_by": ["obligations", "desc"]}, "order_by"),
-        ({"order_by": None}, "order_by"),
+        # A null order_by is an absent one, so the limit is left without an order.
+        ({"order_by": None}, "limit"),
         ({"limit": 0}, "limit"),
         ({"limit": 101}, "limit"),
         ({"limit": -3}, "limit"),
